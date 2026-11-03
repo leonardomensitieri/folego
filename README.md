@@ -3,7 +3,7 @@
 App para salão de beleza de uma profissional só: anotar o que entrou e o que saiu em segundos, separar o dinheiro
 da casa do dinheiro do salão, formar uma reserva ("fôlego") e ver o efeito de uma decisão antes de tomá-la.
 
-**Abrir:** https://leonardomensitieri.github.io/folego/
+**Abrir:** https://folego.sealugue.com/folego/
 
 Nasceu no Projeto de Extensão "Negócio à Prova de Choques: Laboratório de Decisões sob Incerteza e Resiliência
 Empresarial" (Administração, Faculdade HUB, 2º semestre de 2026), como parte digital do Kit de Resiliência.
