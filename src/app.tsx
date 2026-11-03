@@ -115,7 +115,7 @@ export function App() {
 
   return (
     <div class={`app ${modo.value === 'demo' ? 'em-demo' : ''} ${mostrarAbas ? 'com-abas' : ''}`}>
-      <a class="pular" href="#principal">Pular para o conteúdo</a>
+      <a class="pular" href="#/" onClick={(ev) => { ev.preventDefault(); const m = document.getElementById('principal'); if (m) { m.tabIndex = -1; m.focus() } }}>Pular para o conteúdo</a>
       {modo.value === 'demo' && (
         <div class="faixa-demo" role="note">
           <span>Exemplo com dados fictícios</span>

@@ -9,7 +9,7 @@
   e o app Fôlego fica em "../".
 
   ===================================================================================================
-  1. RODADAS 1 A 3: IGUAIS À V1 (para a aplicação já feita, caminho D → C → C, continuar comparável)
+  1. RODADAS 1 A 3: IGUAIS À V1 (para continuar comparável com a v1)
   ===================================================================================================
   Mesmas alternativas, mesmos textos de situação e de consequência, mesmas dicas, mesmo estado inicial
   (Margem 3 = Preservada, Caixa 2 = Apertado, Clientela 2 = Estável) e os MESMOS efeitos, com o mesmo
@@ -68,7 +68,7 @@
   - "Trocar esta escolha" e "Voltar": volta à rodada anterior, restaura os indicadores e registra a
     troca no histórico (o roteiro diz que a troca também revela como ela pensa).
   - Cada consequência mostra de quanto cada indicador mudou e POR QUÊ, em linguagem simples, com a
-    conta em valores fictícios quando ajuda (a proprietária não tinha entendido por que a margem caiu).
+    conta em valores fictícios quando ajuda (para deixar claro por que cada indicador mudou).
   - Rodadas 4 e 5 como extras opcionais (o roteiro de 70 min usa 3 rodadas).
   - Resumo final com caminho, "o que mais pesou", variação dos indicadores, trocas, "Copiar resumo" e
     "Baixar resumo (.txt)". Nada é enviado pela internet.
@@ -78,7 +78,7 @@
   4. PREMISSAS DAS RODADAS 4 E 5 (valores fictícios do Mapa de Decisão)
   ===================================================================================================
   Escala herdada da v1: um atendimento deixa R$ 72 de sobra (R$ 90 de preço, R$ 18 de produto);
-  12 atendimentos por semana = R$ 864. Na rodada 3 da v1, R$ 150 (cerca de 2 atendimentos) não muda o
+  um exemplo fictício de 12 atendimentos por semana = R$ 864. Na rodada 3 da v1, R$ 150 (cerca de 2 atendimentos) não muda o
   Caixa e R$ 600 (cerca de 8 atendimentos) derruba o Caixa em 1 nível. Daí as regras usadas:
     P1. Perder de vez a sobra de uma semana (R$ 864, mais que os R$ 600) = Caixa -1.
     P2. Dinheiro que entra depois, sem se perder (remarcação), = Caixa 0, como o parcelamento (3C).
@@ -104,7 +104,7 @@
     B  Manter a rotina e agir só se cobrada: neste jogo, o pedido de ajuste vem e é resolvido às
        pressas (compras sem comparar preço e horários remanejados), perto do custo de um secador novo:
        Caixa -1. Mapa: "possível pressão depois".
-    C  Buscar orientação oficial (IVISA-Rio, prefeitura, Sebrae): custa tempo, não dinheiro. 0.
+    C  Buscar orientação oficial (vigilância sanitária do município, prefeitura, Sebrae): custa tempo, não dinheiro. 0.
     D  Perguntar a colegas: rápido e de graça agora; o risco de informação errada fica descrito. 0.
     A tela avisa que nesta rodada o que mais está em jogo (saúde, ambiente, tranquilidade) não aparece
     nos três indicadores, e que o cenário é educativo e não indica irregularidade.
@@ -116,6 +116,8 @@
 <meta name="color-scheme" content="light">
 <meta name="theme-color" content="#6a2c5a">
 <meta name="referrer" content="no-referrer">
+<!-- CSP com hash do <script>: se editar o script, recalcule o sha256 (ver docs/gauntlet). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-tKRqVWxBdF60LFOj6AaYnDqG3fOs3nnTKzRRcmVyUAg='; style-src 'unsafe-inline'; img-src data:; base-uri 'none'; form-action 'none'">
 <meta name="description" content="Simulação educativa: decisões de um salão de beleza diante de choques. Valores fictícios.">
 <title>Seu salão sob choques · Laboratório de Decisões</title>
 <style>
@@ -368,11 +370,14 @@
     .btn, .btn-link, .recomeco, .como-ler, #copia-manual { display: none !important; }
     .cartao { box-shadow: none; break-inside: avoid; }
   }
+  .voltar-app { display: inline-flex; align-items: center; min-height: 48px; color: #fff; font-weight: 700; text-decoration: underline; margin: -8px 0 4px; }
+  .voltar-app:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
 </style>
 </head>
 <body>
 <div class="pagina">
   <header class="topo">
+    <a class="voltar-app" href="../">‹ Voltar ao Fôlego</a>
     <p class="topo-sobre">Laboratório de Decisões sob Choques</p>
     <h1>Seu salão sob choques</h1>
     <p class="aviso-fixo">Valores fictícios. Educativo: não é consultoria financeira.</p>
@@ -536,7 +541,7 @@ var RODADAS = [
       'Se você parar, o salão para: é você quem atende e quem decide tudo.',
       'A agenda fica no WhatsApp e no celular.',
       'Parte das clientes paga antes e parte paga no dia.',
-      'Uma semana normal tem cerca de 12 atendimentos, que deixam uns R$ 864 de sobra (valores fictícios).'
+      'Neste exemplo fictício, uma semana normal tem uns 12 atendimentos, que deixam uns R$ 864 de sobra.'
     ],
     dicas: function (ind, esc) {
       var h = [];
@@ -567,7 +572,7 @@ var RODADAS = [
       { k: 'D', t: 'Ajustar a política de sinal e agendamento antecipado após o retorno', d: { k: -1 },
         r: 'Reduz o impacto de ausências futuras, mas pode afastar clientes que não gostam de pagar antes.',
         porque: { k: 'Parte do seu público, sensível a preço, não gosta de pagar antes e pode procurar outro lugar.' },
-        emTroca: 'o caixa fica protegido: quem já tinha pago antes remarcou sem pedir o dinheiro de volta e, daqui em diante, o sinal faz parte do dinheiro entrar antes do atendimento.',
+        emTroca: 'o caixa fica protegido: quem já tinha pago antes remarcou sem pedir o dinheiro de volta e, daqui em diante, o sinal garante que uma parte do dinheiro entre antes do atendimento.',
         fora: 'Numa próxima ausência, o prejuízo será menor.' },
       { k: 'E', t: 'Criar uma mensagem padrão para imprevistos e uma lista de contatos prioritários', d: {},
         r: 'Agiliza o aviso agora e nas próximas emergências. O ideal é preparar com calma, antes de precisar.',
@@ -581,11 +586,11 @@ var RODADAS = [
     sit: 'Um fiscal da vigilância sanitária visita o salão, numa inspeção de rotina, para verificar as condições de funcionamento, incluindo o descarte de resíduos. Visitas assim podem voltar a acontecer.',
     info: [
       'Você já se adaptou a exigências sanitárias antes.',
-      'Hoje, só as lâminas são separadas do lixo comum.',
-      'O salão funciona em casa.'
+      'Em muitos salões pequenos, só as lâminas vão separadas do lixo comum.',
+      'Alguns salões funcionam na casa da profissional.'
     ],
     destaque: 'Nesta rodada, o que mais está em jogo não aparece em Margem, Caixa e Clientela: é a saúde, o ambiente e a sua tranquilidade.',
-    nota: 'Cenário educativo: não indica irregularidade. Dúvidas sobre licenças, uso de imóvel residencial e resíduos devem ser levadas ao IVISA-Rio, à prefeitura ou ao Sebrae.',
+    nota: 'Cenário educativo: não indica irregularidade. Dúvidas sobre licenças, uso de imóvel residencial e resíduos devem ser levadas à vigilância sanitária do seu município, à prefeitura ou ao Sebrae.',
     dicas: function () { return [info('Esta situação não depende das rodadas anteriores: vale para qualquer caminho.')]; },
     opcoes: [
       { k: 'A', t: 'Organizar o descarte de resíduos e registrar como é feito', d: {},
@@ -597,7 +602,7 @@ var RODADAS = [
         porque: { c: 'Agir só quando for cobrada significa resolver com pressa. Neste jogo, o pedido de ajuste vem: você compra o que falta sem comparar preços e remaneja horários de atendimento.' },
         emTroca: 'você poupa esforço agora.',
         fora: 'Fica a dúvida sobre o que está certo e o que não está.' },
-      { k: 'C', t: 'Buscar orientação em fontes oficiais (IVISA-Rio, prefeitura, Sebrae)', d: {},
+      { k: 'C', t: 'Buscar orientação em fontes oficiais (vigilância sanitária, prefeitura, Sebrae)', d: {},
         r: 'Reduz incertezas e evita decidir com base em boatos. Exige tempo para consultar.',
         porqueNada: 'Consultar custa tempo, não dinheiro.',
         fora: 'Você passa a saber o que vale de verdade para o seu caso e evita gastar com o que não precisa.' },

@@ -1,5 +1,5 @@
 import { resumoDoMes } from '../domain/calc'
-import { dataCurta, diaDaSemana, mesDe, somarMeses, tituloMes } from '../domain/dates'
+import { dataCurta, diaDaSemana, mesDe, nomeMesCurto, somarMeses, tituloMes } from '../domain/dates'
 import type { Lancamento } from '../domain/types'
 import { estado, mesAtual } from '../state/store'
 import { IcSeta, IcVoltar } from '../ui/icons'
@@ -58,9 +58,9 @@ export function Movimentos({ mes: mesParam }: { mes?: string }) {
   return (
     <section class="pagina">
       <header class="topo">
-        <button class="btn-icone" aria-label="Mês anterior" onClick={() => ir(`movimentos/${somarMeses(mes, -1)}`, { substituir: true })}><IcVoltar /></button>
+        <button class="btn-voltar" onClick={() => ir(`movimentos/${somarMeses(mes, -1)}`, { substituir: true })}><IcVoltar /> <span>{nomeMesCurto(somarMeses(mes, -1)).slice(0, 3)}</span></button>
         <h1>{tituloMes(mes)}</h1>
-        <button class="btn-icone" aria-label="Próximo mês" disabled={!podeAvancar} onClick={() => ir(`movimentos/${somarMeses(mes, 1)}`, { substituir: true })}><IcSeta /></button>
+        <button class="btn-voltar" disabled={!podeAvancar} onClick={() => ir(`movimentos/${somarMeses(mes, 1)}`, { substituir: true })}><span>{nomeMesCurto(somarMeses(mes, 1)).slice(0, 3)}</span> <IcSeta /></button>
       </header>
       <div class="conteudo">
         <Cartao class="resumo-mes">

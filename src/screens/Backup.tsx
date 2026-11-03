@@ -1,3 +1,4 @@
+import { hoje } from '../domain/dates'
 import { useState } from 'preact/hooks'
 import { gerarBackup, lerBackup, nomeArquivoBackup, paraCSV } from '../domain/backup'
 import { estado, importarBackup, modo, registrarBackupFeito } from '../state/store'
@@ -30,7 +31,8 @@ export function Backup() {
   const ultimo = e.config.ultimoBackup ? new Date(e.config.ultimoBackup).toLocaleDateString('pt-BR') : null
 
   async function exportar() {
-    const r = await compartilharOuBaixar(nomeArquivoBackup(), JSON.stringify(gerarBackup(estado.value)), 'application/json')
+    const demo = modo.value === 'demo'
+    const r = await compartilharOuBaixar(nomeArquivoBackup(new Date(), demo), JSON.stringify(gerarBackup(estado.value, new Date(), demo)), 'application/json')
     if (r !== 'cancelado') {
       registrarBackupFeito()
       avisar(r === 'compartilhado' ? 'Cópia enviada. Guarde num lugar seguro.' : 'Cópia baixada.')
@@ -38,7 +40,8 @@ export function Backup() {
   }
 
   async function planilha() {
-    await compartilharOuBaixar(`folego-lancamentos-${new Date().toISOString().slice(0, 10)}.csv`, '﻿' + paraCSV(estado.value), 'text/csv')
+    const demo = modo.value === 'demo'
+    await compartilharOuBaixar(`folego-${demo ? 'DEMONSTRACAO-' : ''}anotacoes-${hoje()}.csv`, '﻿' + paraCSV(estado.value, demo), 'text/csv')
   }
 
   function importar(ev: Event) {
@@ -50,7 +53,11 @@ export function Backup() {
       setErro('Arquivo grande demais para ser uma cópia do Fôlego.')
       return
     }
-    f.text().then((t) => {
+    f.text().catch(() => null).then((t) => {
+      if (t === null) {
+        setErro('Não consegui ler o arquivo. Tente de novo.')
+        return
+      }
       const previa = lerBackup(t)
       if (!previa.ok) {
         setErro(previa.erro)

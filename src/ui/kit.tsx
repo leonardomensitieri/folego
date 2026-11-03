@@ -65,8 +65,8 @@ export function Pagina({ titulo, voltarPara, children, acao }: {
     <section class="pagina">
       <header class="topo">
         {voltarPara !== undefined ? (
-          <button class="btn-icone" aria-label="Voltar" onClick={() => voltar(voltarPara)}>
-            <IcVoltar />
+          <button class="btn-voltar" onClick={() => voltar(voltarPara)}>
+            <IcVoltar /> <span>Voltar</span>
           </button>
         ) : <span class="topo-espaco" />}
         <h1>{titulo}</h1>

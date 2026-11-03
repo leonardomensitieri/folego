@@ -227,6 +227,12 @@ describe('backup', () => {
       expect(lerBackup(JSON.stringify(b)).ok).toBe(false)
     }
   })
+  it('cópia da demonstração nunca entra nos dados reais', () => {
+    const b = gerarBackup(estadoDemo('2026-11', 3), new Date(), true)
+    const r = lerBackup(JSON.stringify(b))
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.erro).toContain('demonstração')
+  })
   it('recusa arquivo estranho ou com defeito', () => {
     expect(lerBackup('oi').ok).toBe(false)
     expect(lerBackup(JSON.stringify({ formato: 'outro' })).ok).toBe(false)

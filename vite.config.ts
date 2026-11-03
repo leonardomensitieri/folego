@@ -14,7 +14,8 @@ export default defineConfig({
   plugins: [
     preact(),
     VitePWA({
-      registerType: 'prompt',
+      // atualiza sozinho: não há dado no servidor, então a versão nova pode entrar sem perguntar
+      registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'Fôlego — caixa do salão',

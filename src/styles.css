@@ -420,3 +420,19 @@ h1[tabindex="-1"]:focus { outline: none; }
 .selo-atrasado { color: var(--ruim); }
 .detalhe-inline summary { min-height: 48px; display: flex; align-items: center; color: var(--primaria); font-weight: 700; cursor: pointer; }
 .destaque-valor .dinheiro { white-space: nowrap; }
+
+/* ---- gauntlet rodada 2: acessibilidade ---- */
+html { scroll-padding-top: 120px; scroll-padding-bottom: calc(var(--abas-h) + env(safe-area-inset-bottom) + 96px); }
+.campo-input:focus, .campo-caixa:focus-within, .escreva-linha input:focus { outline: 3px solid var(--primaria-2); outline-offset: 2px; }
+.btn-voltar { min-height: 48px; min-width: 48px; border: 0; background: transparent; display: inline-flex; align-items: center; gap: 2px; color: var(--primaria); font-weight: 700; padding: 0 6px; text-transform: capitalize; }
+.btn-voltar:disabled { opacity: 0.3; }
+.pular { min-height: 48px; display: inline-flex; align-items: center; }
+.grade-servicos { grid-template-columns: repeat(auto-fill, minmax(min(140px, 100%), 1fr)); }
+.opcao { min-width: 0; overflow-wrap: anywhere; hyphens: auto; }
+.antes-depois { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
+.antes-depois .dinheiro { white-space: normal; }
+.assinatura { overflow-wrap: anywhere; }
+.barra { background: var(--superficie); box-shadow: inset 0 0 0 1px var(--borda-controle); }
+html.letra-grande .grade-servicos { grid-template-columns: 1fr; }
+@media (max-width: 360px) { html.letra-grande .rapido-servicos, html.letra-grande .fiado-botoes { grid-template-columns: 1fr; } }
+@media print { .em-demo::before { content: "DEMONSTRAÇÃO — DADOS FICTÍCIOS"; display: block; border: 2px dashed #000; text-align: center; font-weight: 800; padding: 6px; } }

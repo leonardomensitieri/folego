@@ -8,11 +8,13 @@ export interface ArquivoBackup {
   formato: typeof FORMATO_BACKUP
   versao: 1
   geradoEm: string
+  /** true = cópia da demonstração (dados fictícios): nunca entra nos dados reais. */
+  demonstracao?: boolean
   estado: Estado
 }
 
-export function gerarBackup(estado: Estado, agora: Date = new Date()): ArquivoBackup {
-  return { formato: FORMATO_BACKUP, versao: 1, geradoEm: agora.toISOString(), estado }
+export function gerarBackup(estado: Estado, agora: Date = new Date(), demonstracao = false): ArquivoBackup {
+  return { formato: FORMATO_BACKUP, versao: 1, geradoEm: agora.toISOString(), ...(demonstracao ? { demonstracao: true } : {}), estado }
 }
 
 export type ResultadoImportacao = { ok: true; estado: Estado } | { ok: false; erro: string }
@@ -36,6 +38,7 @@ export function lerBackup(texto: string): ResultadoImportacao {
   const b = json as Partial<ArquivoBackup>
   if (!b || b.formato !== FORMATO_BACKUP || !b.estado) return { ok: false, erro: 'O arquivo não é uma cópia de segurança do Fôlego.' }
   if (b.versao !== 1) return { ok: false, erro: 'Esta cópia é de uma versão mais nova do app. Atualize o app e tente de novo.' }
+  if (b.demonstracao === true) return { ok: false, erro: 'Este arquivo é da demonstração (dados fictícios) e não pode entrar nos seus dados.' }
   const e = b.estado as Partial<Estado>
   const defeito = (o: string): ResultadoImportacao => ({ ok: false, erro: `A cópia tem ${o} com defeito e não foi carregada. Seus dados atuais continuam como estavam.` })
   if (!Array.isArray(e.lancamentos)) return { ok: false, erro: 'A cópia está incompleta.' }
@@ -128,12 +131,12 @@ export function lerBackup(texto: string): ResultadoImportacao {
   return { ok: true, estado: { config, servicos, categorias, lancamentos, fornecedores } }
 }
 
-export function nomeArquivoBackup(agora: Date = new Date()): string {
-  return `folego-copia-${hoje(agora)}.json`
+export function nomeArquivoBackup(agora: Date = new Date(), demonstracao = false): string {
+  return demonstracao ? `folego-DEMONSTRACAO-ficticio-${hoje(agora)}.json` : `folego-copia-${hoje(agora)}.json`
 }
 
 /** Planilha simples (abre no Excel/Google Planilhas) com todos os lançamentos. */
-export function paraCSV(estado: Estado): string {
+export function paraCSV(estado: Estado, demonstracao = false): string {
   const nomes = new Map<string, string>([
     ...estado.servicos.map((s) => [s.id, s.nome] as [string, string]),
     ...estado.categorias.map((c) => [c.id, c.nome] as [string, string]),
@@ -162,6 +165,7 @@ export function paraCSV(estado: Estado): string {
   }
   // texto que começa com = + - @ vira fórmula no Excel: um apóstrofo na frente impede
   const seguro = (c: string) => (/^[=+\-@\t\r]/.test(c) && !/^-?\d/.test(c) ? `'${c}` : c)
+  if (demonstracao) linhas.unshift(['DEMONSTRAÇÃO — DADOS FICTÍCIOS'])
   return linhas
     .map((r) => r.map((c0) => { const c = seguro(c0); return /[;"\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c }).join(';'))
     .join('\n')

@@ -48,7 +48,7 @@ export function Fornecedores() {
                   <li class={f.id === maisBarato.id && ordenada.length > 1 ? 'melhor' : ''}>
                     <span>{f.nome}{f.id === maisBarato.id && ordenada.length > 1 && <small> · menor preço</small>}</span>
                     <span>{brlCurto(f.preco)} <small>{dataCurta(f.data)}{diasEntre(f.data, hoje()) > 90 ? ' (antigo)' : ''}</small></span>
-                    <button class="btn-icone pequeno" aria-label={`Apagar ${f.nome}`} onClick={() => removerFornecedor(f.id)}>✕</button>
+                    <button class="btn btn-pequeno btn-sutil" onClick={() => { removerFornecedor(f.id); avisar(`Preço de ${f.nome} apagado.`, { rotulo: 'Desfazer', fazer: () => salvarFornecedor(f) }) }}>Apagar</button>
                   </li>
                 ))}
               </ul>
