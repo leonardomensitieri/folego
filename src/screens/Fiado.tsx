@@ -23,6 +23,8 @@ function ItemFiado({ l }: { l: Lancamento }) {
   const e = estado.value
   const [aberto, setAberto] = useState<'pagou' | 'lembrar' | null>(null)
   const dias = diasEntre(l.data, hoje())
+  // mais de uma semana: vira selo "Atrasado · 12 dias" (mesmo critério de antes)
+  const atrasado = dias > 7
   const texto = mensagemCobranca(l.cliente, l.data)
 
   function receber(forma: Forma) {
@@ -39,13 +41,14 @@ function ItemFiado({ l }: { l: Lancamento }) {
       <div class="fiado-linha">
         <span class="fiado-quem">
           <b>{l.cliente ?? 'Cliente'}</b>
-          <small class={dias > 7 ? 'fiado-antigo' : ''}>{nomeCategoria(e, l)} · {dataCurta(l.data)} · {dias === 0 ? 'hoje' : dias === 1 ? 'há 1 dia' : `há ${dias} dias`}</small>
+          <small>{nomeCategoria(e, l)} · {dataCurta(l.data)}{!atrasado && ` · ${dias === 0 ? 'hoje' : dias === 1 ? 'há 1 dia' : `há ${dias} dias`}`}</small>
+          {atrasado && <span class="selo-atraso">Atrasado · {dias} dias</span>}
         </span>
         <Dinheiro v={l.valor} class="fiado-valor" />
       </div>
       <div class="fiado-botoes">
-        <button class="btn btn-pequeno" aria-expanded={aberto === 'lembrar'} onClick={() => setAberto(aberto === 'lembrar' ? null : 'lembrar')}>Lembrar pelo WhatsApp</button>
-        <button class="btn btn-pequeno btn-primario" aria-expanded={aberto === 'pagou'} onClick={() => setAberto(aberto === 'pagou' ? null : 'pagou')}>Ela pagou</button>
+        <button class="btn btn-pequeno btn-primario" aria-expanded={aberto === 'lembrar'} onClick={() => setAberto(aberto === 'lembrar' ? null : 'lembrar')}>Lembrar pelo WhatsApp</button>
+        <button class="btn btn-pequeno btn-contorno" aria-expanded={aberto === 'pagou'} onClick={() => setAberto(aberto === 'pagou' ? null : 'pagou')}>Ela pagou</button>
       </div>
       {aberto === 'lembrar' && (
         <div class="fiado-painel">
@@ -78,7 +81,11 @@ export function Fiado() {
         <Vazio titulo="Ninguém com fiado" texto="Quando uma cliente pedir para pagar depois, escolha “Fiado” ao anotar." />
       ) : (
         <>
-          <p class="total-fiado">Para receber: <b><Dinheiro v={total} /></b></p>
+          <div class="cartao destaque">
+            <p class="destaque-rotulo">Fiado para receber</p>
+            <p class="destaque-valor"><Dinheiro v={total} /></p>
+            <p class="cartao-sub">{abertos.length === 1 ? '1 cliente vai pagar depois.' : `${abertos.length} clientes vão pagar depois.`}</p>
+          </div>
           <ul class="lista fiado-lista">
             {abertos.map((l) => <ItemFiado key={l.id} l={l} />)}
           </ul>

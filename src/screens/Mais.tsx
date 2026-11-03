@@ -3,7 +3,7 @@ import { fiadosAbertos, saldoReserva } from '../domain/calc'
 import { brl } from '../domain/money'
 import type { Centavos } from '../domain/types'
 import { apagarTudoReal, armazenamentoPersistente, atualizarConfig, estado, leituraFalhou, modo, prefs, recomecarDemo, temDadosReais, trocarModo } from '../state/store'
-import { IcAjuste, IcBalanca, IcCaminhao, IcCelular, IcCheck, IcCofre, IcConversa, IcEscudo, IcInfo, IcNuvem, IcPessoa, IcRecibo, IcSeta } from '../ui/icons'
+import { IcAjuste, IcCalendario, IcCaminhao, IcCelular, IcCofre, IcConversa, IcDado, IcEscudo, IcInfo, IcNuvem, IcPessoa, IcRecibo, IcSeta } from '../ui/icons'
 import { avisar, BotaoWhatsApp, CampoNumero, CampoTexto, CampoValor, Escolha, Linha, Nota, Pagina } from '../ui/kit'
 import { ir } from '../ui/router'
 import { estaInstalado } from './Instalar'
@@ -19,14 +19,14 @@ export function Mais() {
   return (
     <Pagina titulo="Mais">
       <ul class="lista menu">
-        <li><Linha icone={<IcCofre />} titulo="Reserva para imprevistos" sub={`${nomeDaReserva() !== 'Reserva' ? `${nomeDaReserva()} · ` : ''}guardado: ${brl(saldoReserva(e.lancamentos))}`} onClick={() => ir('mais/reserva')} /></li>
+        <li><Linha icone={<IcCofre />} titulo="Reserva para imprevistos" sub={`Total na reserva: ${brl(saldoReserva(e.lancamentos))}`} onClick={() => ir('mais/reserva')} /></li>
         <li><Linha icone={<IcPessoa />} titulo="Fiado" sub={fiado ? `${brl(fiado)} para receber` : 'Ninguém com fiado'} onClick={() => ir('mais/fiado')} /></li>
-        <li><Linha icone={<IcCheck />} titulo="Meu plano do mês" sub={`4 passos pequenos · ${feitos} de 4 feitos`} onClick={() => ir('mais/plano')} /></li>
+        <li><Linha icone={<IcCalendario />} titulo="Meu plano do mês" sub={`4 passos pequenos · ${feitos} de 4 feitos`} onClick={() => ir('mais/plano')} /></li>
         <li><Linha icone={<IcCaminhao />} titulo="Fornecedores" sub="Compare preços antes de comprar" onClick={() => ir('mais/fornecedores')} /></li>
         <li><Linha icone={<IcRecibo />} titulo="MEI em dia" sub={e.config.ehMei === false ? 'Você disse que não é MEI' : 'DAS, limite e relatório mensal'} onClick={() => ir('mais/mei')} /></li>
         <li>
           <a class="linha linha-botao" href={`${import.meta.env.BASE_URL}laboratorio/`}>
-            <span class="linha-icone" aria-hidden="true"><IcBalanca /></span>
+            <span class="linha-icone" aria-hidden="true"><IcDado /></span>
             <span class="linha-meio">
               <span class="linha-titulo">Treinar: e se o produto subir de preço?</span>
               <span class="linha-sub">Um jogo curto com imprevistos de salão, sem nota</span>

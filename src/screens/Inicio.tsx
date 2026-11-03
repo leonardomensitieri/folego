@@ -100,28 +100,32 @@ export function Inicio() {
             <span><small>Pra casa</small><Dinheiro v={r.praCasa} /></span>
           </div>
           {divisao && (
-            <p class="destaque-nota">
+            <p class={`destaque-nota ${divisao.tipo === 'dividido' ? 'divisao' : ''}`}>
               {divisao.tipo === 'dividido'
-                ? <>Na reserva: <b><Dinheiro v={divisao.naReserva} /></b> · No caixa: <b><Dinheiro v={divisao.noCaixa} /></b></>
+                ? <><span>Guardado este mês: <b><Dinheiro v={divisao.naReserva} /></b></span><span>No caixa: <b><Dinheiro v={divisao.noCaixa} /></b></span></>
                 : divisao.tipo === 'guardou-mais'
                   ? <>Você guardou <b><Dinheiro v={divisao.naReserva} /></b> na reserva, mais do que sobrou neste mês.</>
                   : <>Mesmo assim, você guardou <b><Dinheiro v={divisao.naReserva} /></b> na reserva neste mês.</>}
             </p>
           )}
         </Cartao>
-        <div class="linha-links">
-          <button class="link-sutil" onClick={() => setMostrarComo(!mostrarComo)} aria-expanded={mostrarComo}>
+        {/* ações de apoio: pequenas, juntas e na cor suave, para não competir com o número */}
+        <div class="links-discretos">
+          <button class="link-discreto" onClick={() => setMostrarComo(!mostrarComo)} aria-expanded={mostrarComo}>
             {mostrarComo ? 'Fechar explicação' : 'Como esse número é calculado?'}
           </button>
           {temVoz && (
-            <button class="link-sutil" onClick={() => ouvir(r.entrou, r.saiu, r.praCasa, r.sobrou)}><IcAltoFalante size={20} /> Ouvir</button>
+            <>
+              <span class="ponto" aria-hidden="true">·</span>
+              <button class="link-discreto" onClick={() => ouvir(r.entrou, r.saiu, r.praCasa, r.sobrou)}><IcAltoFalante size={18} /> Ouvir</button>
+            </>
           )}
         </div>
         {mostrarComo && (
           <p class="explica">
             <b>Sobrou</b> = o que entrou (já sem a taxa da maquininha) − os gastos do salão − o que você tirou pra casa.
             Fiado só conta quando a cliente paga.
-            {divisao?.tipo === 'dividido' && ' “Na reserva” é a parte do que sobrou que você guardou neste mês; “No caixa” é o resto.'}
+            {divisao?.tipo === 'dividido' && ' “Guardado este mês” é a parte do que sobrou que foi para a reserva; “No caixa” é o resto, que ficou no salão.'}
           </p>
         )}
 
@@ -142,9 +146,10 @@ export function Inicio() {
 
         <AtendimentoRapido />
 
-        <div class="atalhos">
-          <button class="link" onClick={() => ir('lancar/retirada')}>Tirei pra casa</button>
-          <button class="link" onClick={() => ir('lancar/reserva')}>Guardei na reserva</button>
+        <div class="links-discretos" role="group" aria-label="Outras anotações">
+          <button class="link-discreto" onClick={() => ir('lancar/retirada')}>Tirei pra casa</button>
+          <span class="ponto" aria-hidden="true">·</span>
+          <button class="link-discreto" onClick={() => ir('lancar/reserva')}>Guardei na reserva</button>
         </div>
 
         {/* Recebi / Gastei ficam sempre à mão, presos logo acima do menu */}

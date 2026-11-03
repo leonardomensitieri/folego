@@ -532,3 +532,74 @@ html.letra-grande .fornecedor li .btn { grid-column: 2; justify-self: end; }
   .fornecedor li { grid-template-columns: minmax(0, 1fr) auto; }
   .fornecedor li .btn { grid-column: 2; justify-self: end; }
 }
+
+/* ---- gauntlet rodada 5: acabamento (elegância) ---- */
+/* Anotar: "Como pagou?" em duas linhas iguais (3 + 2), de borda a borda */
+.formas .escolha-grade { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.formas .opcao { grid-column: span 2; min-height: 52px; padding: 6px 4px; }
+.formas .opcao:nth-child(n + 4) { grid-column: span 3; }
+/* letra maior em tela estreita: 2 + 2 + 1, sem quebrar "Dinheiro" no meio */
+@media (max-width: 380px) {
+  html.letra-grande .formas .opcao { grid-column: span 3; }
+  html.letra-grande .formas .opcao:nth-child(5) { grid-column: span 6; }
+}
+/* a barra do "Salvar" é uma barra de verdade: fundo cheio e linha em cima; no fim da rolagem, folga acima dela */
+.lancar .rodape-fixo {
+  background: var(--bg); backdrop-filter: none; border-top: 1px solid var(--linha);
+  box-shadow: 0 -6px 16px rgb(38 28 39 / 5%); margin-top: 12px;
+}
+
+/* Decidir: resultado em frase curta; o número fica dentro da frase */
+.efeito-resultado { gap: 6px; }
+.efeito-frase { margin: 0; font-size: 1.3rem; font-weight: 700; line-height: 1.3; letter-spacing: -0.01em; }
+.efeito-frase b { font-weight: 800; white-space: nowrap; }
+.efeito-resultado .efeito-sub b { font-weight: 800; }
+.efeito-resultado .efeito-linhas { margin-top: 6px; font-size: 0.92rem; }
+.efeito-resultado .efeito-linhas div:first-child { border-top: 1px solid var(--linha); padding-top: 8px; }
+.efeito-resultado .efeito-linhas div { padding: 6px 0; }
+.segmentado-3 button { white-space: nowrap; }
+html.letra-grande .segmentado-3 button { white-space: normal; }
+
+/* Fiado: total no mesmo estilo do "Sobrou"; atraso num selo neutro; "Ela pagou" em contorno */
+.btn-contorno { background: var(--superficie); color: var(--primaria); box-shadow: inset 0 0 0 2px var(--primaria); }
+.btn-contorno:active { background: var(--primaria-clara); }
+.selo-atraso {
+  align-self: flex-start; margin-top: 4px; display: inline-flex; align-items: center;
+  background: var(--superficie-2); color: var(--tinta); border: 1px solid var(--linha);
+  border-radius: 999px; padding: 2px 10px; font-size: 0.85rem; font-weight: 700;
+}
+.fiado-item { padding: 14px; gap: 12px; }
+
+/* Início: apoio discreto e agrupado; título dos serviços diz o que acontece */
+.links-discretos { display: flex; flex-wrap: wrap; align-items: center; gap: 0 2px; margin-top: -10px; }
+.link-discreto {
+  background: none; border: 0; min-height: 48px; padding: 0 4px; display: inline-flex; align-items: center; gap: 6px;
+  color: var(--suave); font-size: 0.9rem; font-weight: 600; text-align: left;
+  text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--suave) 50%, transparent); text-underline-offset: 3px;
+}
+.link-discreto:first-child { padding-left: 0; }
+.link-discreto svg { flex-shrink: 0; }
+.links-discretos .ponto { color: var(--suave); }
+.rapido .secao { color: var(--tinta); font-size: 1rem; }
+
+/* faixa de demonstração na cor neutra do app (continua sempre visível) */
+.faixa-demo { background: var(--superficie-2); color: var(--tinta); border-bottom: 1px solid var(--linha); }
+.btn-faixa { color: var(--primaria); }
+
+/* Meu mês: navegação com o nome inteiro do mês; "Sobrou" maior que as outras linhas */
+.mes-nav { display: flex; justify-content: space-between; align-items: center; margin: -10px -6px -6px; }
+.mes-nav .mes-proximo { margin-left: auto; }
+.resumo-mes .numeros .total { align-items: baseline; padding-top: 10px; margin-top: 4px; }
+.resumo-mes .numeros .total dt { font-size: 1.05rem; }
+.resumo-mes .numeros .total dd { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+
+/* MEI: o DAS a pagar abre a tela, antes do limite */
+.secao.secao-primeira { margin-top: 4px; }
+
+/* "Guardado este mês" e "No caixa": cada par inteiro; numa linha se couber, um embaixo do outro se não */
+.divisao { display: flex; flex-wrap: wrap; gap: 0 14px; }
+.divisao span { white-space: nowrap; }
+.inicio .destaque { padding: 16px 18px; }
+.inicio .destaque-nota { font-size: 0.85rem; }
+.rotulo-dica { font-weight: 500; color: var(--suave); font-size: 0.85rem; }
+.efeito-frase, .efeito-resultado .efeito-sub { text-wrap: balance; }

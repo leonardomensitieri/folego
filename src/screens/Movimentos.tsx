@@ -1,5 +1,5 @@
 import { competenciaDAS, divisaoDoSobrou, resumoDoMes } from '../domain/calc'
-import { dataCurta, diaDaSemana, mesDe, mesValido, nomeMesCurto, somarMeses, tituloMes } from '../domain/dates'
+import { dataCurta, diaDaSemana, mesDe, mesValido, nomeMes, nomeMesCurto, somarMeses, tituloMes } from '../domain/dates'
 import type { Lancamento } from '../domain/types'
 import { estado, mesAtual } from '../state/store'
 import { IcSeta, IcVoltar } from '../ui/icons'
@@ -69,16 +69,16 @@ export function Movimentos({ mes: mesParam }: { mes?: string }) {
   return (
     <section class="pagina">
       <header class="topo">
-        <span class="topo-lado">
-          <button class="btn-voltar" aria-label={`Mês anterior: ${nomeMesCurto(somarMeses(mes, -1))}`} onClick={() => ir(`movimentos/${somarMeses(mes, -1)}`, { substituir: true })}><IcVoltar /> <span>{nomeMesCurto(somarMeses(mes, -1)).slice(0, 3)}</span></button>
-        </span>
+        <span class="topo-lado" />
         <h1>{tituloMes(mes)}</h1>
-        {/* mês que ainda não chegou não tem o que mostrar: o botão some em vez de ficar apagado */}
-        <span class="topo-lado topo-direita">
-          {podeAvancar && <button class="btn-voltar" aria-label={`Próximo mês: ${nomeMesCurto(somarMeses(mes, 1))}`} onClick={() => ir(`movimentos/${somarMeses(mes, 1)}`, { substituir: true })}><span>{nomeMesCurto(somarMeses(mes, 1)).slice(0, 3)}</span> <IcSeta /></button>}
-        </span>
+        <span class="topo-lado topo-direita" />
       </header>
       <div class="conteudo">
+        {/* troca de mês com o nome inteiro ("‹ Outubro"); mês que ainda não chegou não tem botão */}
+        <nav class="mes-nav" aria-label="Trocar de mês">
+          <button class="btn-voltar" aria-label={`Mês anterior: ${nomeMes(somarMeses(mes, -1))}`} onClick={() => ir(`movimentos/${somarMeses(mes, -1)}`, { substituir: true })}><IcVoltar /> <span>{nomeMesCurto(somarMeses(mes, -1))}</span></button>
+          {podeAvancar && <button class="btn-voltar mes-proximo" aria-label={`Próximo mês: ${nomeMes(somarMeses(mes, 1))}`} onClick={() => ir(`movimentos/${somarMeses(mes, 1)}`, { substituir: true })}><span>{nomeMesCurto(somarMeses(mes, 1))}</span> <IcSeta /></button>}
+        </nav>
         <Cartao class="resumo-mes">
           <dl class="numeros">
             <div><dt>Entrou</dt><dd><Dinheiro v={r.entrou} /></dd></div>
@@ -87,9 +87,9 @@ export function Movimentos({ mes: mesParam }: { mes?: string }) {
             <div class="total"><dt>{r.sobrou < 0 ? 'Faltou no salão' : 'Sobrou no salão'}</dt><dd><Dinheiro v={r.sobrou} /></dd></div>
           </dl>
           {divisao && (
-            <p class="cartao-sub">
+            <p class={`cartao-sub ${divisao.tipo === 'dividido' ? 'divisao' : ''}`}>
               {divisao.tipo === 'dividido'
-                ? <>Na reserva: <b><Dinheiro v={divisao.naReserva} /></b> · No caixa: <b><Dinheiro v={divisao.noCaixa} /></b></>
+                ? <><span>Guardado este mês: <b><Dinheiro v={divisao.naReserva} /></b></span><span>No caixa: <b><Dinheiro v={divisao.noCaixa} /></b></span></>
                 : divisao.tipo === 'guardou-mais'
                   ? <>Você guardou <b><Dinheiro v={divisao.naReserva} /></b> na reserva, mais do que sobrou neste mês.</>
                   : <>Mesmo assim, você guardou <b><Dinheiro v={divisao.naReserva} /></b> na reserva neste mês.</>}

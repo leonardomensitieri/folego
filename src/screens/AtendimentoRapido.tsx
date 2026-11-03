@@ -82,7 +82,7 @@ export function AtendimentoRapido() {
 
   return (
     <section class="rapido" aria-labelledby="rapido-titulo">
-      <h2 class="secao" id="rapido-titulo">Atendimento rápido</h2>
+      <h2 class="secao" id="rapido-titulo">Fez um atendimento? Toque no serviço</h2>
       <div class="rapido-servicos">
         {servicos.map((s) => (
           <button class={`opcao ${aberto?.id === s.id ? 'ativa' : ''}`} aria-pressed={aberto?.id === s.id} aria-expanded={aberto?.id === s.id}

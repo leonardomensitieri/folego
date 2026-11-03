@@ -57,3 +57,11 @@ export const IcSetaVolta = (p: P) => <Svg {...p}><path d="M9 14 4 9l5-5" /><path
 export const IcAltoFalante = (p: P) => <Svg {...p}><path d="M4 9.5v5h3.5L12 18V6L7.5 9.5z" /><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" /></Svg>
 export const IcCelular = (p: P) => <Svg {...p}><rect x="7" y="2.5" width="10" height="19" rx="2" /><path d="M12 8v6m-2.5-2.5L12 14l2.5-2.5M11 18.5h2" /></Svg>
 export const IcFolha = (p: P) => <Svg {...p}><path d="M7 3h7l5 5v13H7z" /><path d="M14 3v5h5M10 13h6M10 17h6" /></Svg>
+export const IcCalendario = (p: P) => <Svg {...p}><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M3.5 10h17M8 3v4M16 3v4M8 14h3" /></Svg>
+/** Dado: o "Treinar" é um jogo (diferente da balança do "Decidir"). */
+export const IcDado = (p: P) => (
+  <Svg {...p}>
+    <rect x="4" y="4" width="16" height="16" rx="3.5" />
+    <g fill="currentColor" stroke="none"><circle cx="9" cy="9" r="1.3" /><circle cx="12" cy="12" r="1.3" /><circle cx="15" cy="15" r="1.3" /></g>
+  </Svg>
+)

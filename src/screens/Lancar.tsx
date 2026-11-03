@@ -57,8 +57,9 @@ export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarI
     editando?.categoria ?? r?.categoria ?? (tipo === 'entrada' ? '' : tipo === 'saida' ? '' : tipo),
   )
   const [valor, setValor] = useState<Centavos | null>(editando?.valor ?? r?.valor ?? null)
+  // entrada nova começa no Pix (o jeito mais comum no salão); rascunho do "Escreva do seu jeito" mantém o que foi entendido
   const [forma, setForma] = useState<FormaOuFiado | undefined>(
-    editando ? (editando.recebido ? editando.forma : 'fiado') : r?.fiado ? 'fiado' : r?.forma,
+    editando ? (editando.recebido ? editando.forma : 'fiado') : r ? (r.fiado ? 'fiado' : r.forma) : tipo === 'entrada' ? 'pix' : undefined,
   )
   const [cliente, setCliente] = useState(editando?.cliente ?? r?.cliente ?? '')
   const [descricao, setDescricao] = useState(editando?.descricao ?? '')
@@ -88,10 +89,18 @@ export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarI
       ? disponivel <= 0 ? 'A reserva está vazia: não tem o que tirar.' : `Na reserva só tem ${brl(disponivel)}.` :
     forma === 'fiado' && !cliente.trim() ? 'Escreva o nome de quem ficou com o fiado.' : null
 
+  // o preço do serviço vai para o Valor (sem apagar um valor que ela digitou à mão)
+  const valorEhDeServico = !valor || servicos.some((x) => x.preco === valor)
   function escolherServico(id: string) {
     setCategoria(id)
     const s = e.servicos.find((x) => x.id === id)
-    if (s && (!valor || servicos.some((x) => x.preco === valor))) setValor(s.preco)
+    if (s && valorEhDeServico) setValor(s.preco)
+  }
+  // "Outro": o preço de um serviço não vale; o campo fica vazio e pronto para digitar
+  function escolherOutro() {
+    setCategoria(SERVICO_AVULSO)
+    if (valor && valorEhDeServico) setValor(null)
+    requestAnimationFrame(() => document.getElementById('valor')?.focus())
   }
 
   function salvar() {
@@ -185,7 +194,7 @@ export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarI
                 <small>{brl(s.preco)}</small>
               </button>
             ))}
-            <button type="button" class={`opcao ${categoria === SERVICO_AVULSO ? 'ativa' : ''}`} aria-pressed={categoria === SERVICO_AVULSO} onClick={() => setCategoria(SERVICO_AVULSO)}>
+            <button type="button" class={`opcao ${categoria === SERVICO_AVULSO ? 'ativa' : ''}`} aria-pressed={categoria === SERVICO_AVULSO} onClick={escolherOutro}>
               <span>Outro</span>
               <small>digitar</small>
             </button>
@@ -224,14 +233,16 @@ export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarI
       {tipo === 'reserva' && <Nota tom="bom">Dinheiro guardado é fôlego para quando um imprevisto chegar, como o secador quebrar.</Nota>}
       {tipo === 'resgate' && <Nota>Use a reserva só para emergência do salão. Depois, volte a guardar aos poucos.</Nota>}
 
-      <CampoValor id="valor" rotulo="Valor" valor={valor} aoMudar={setValor} autoFocus={!ehEntrada && tipo !== 'saida'} />
+      <CampoValor id="valor" rotulo="Valor" valor={valor} aoMudar={setValor} autoFocus={!ehEntrada && tipo !== 'saida'}
+        dica={ehEntrada && categoria !== SERVICO_AVULSO ? 'o preço vem do serviço' : undefined} />
 
       {ehEntrada && (
         <Escolha<FormaOuFiado>
           rotulo="Como pagou?"
           valor={forma}
           aoMudar={setForma}
-          estilo="linha"
+          class="formas"
+          colunas={6}
           opcoes={[
             { valor: 'pix', rotulo: 'Pix' },
             { valor: 'dinheiro', rotulo: 'Dinheiro' },

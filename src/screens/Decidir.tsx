@@ -19,10 +19,17 @@ type Cena = 'livre' | 'concorrente' | 'dolar' | 'aumento'
 
 // Nomes curtos para caber numa linha, mesmo a 320 px (as rodadas do Laboratório: concorrente, dólar, preço)
 const CENAS: { id: Cena; titulo: string }[] = [
-  { id: 'concorrente', titulo: 'Dar desconto' },
-  { id: 'dolar', titulo: 'Produto subiu' },
-  { id: 'aumento', titulo: 'Subir o preço' },
+  { id: 'concorrente', titulo: 'Desconto' },
+  { id: 'dolar', titulo: 'Custo subiu' },
+  { id: 'aumento', titulo: 'Aumento' },
 ]
+
+/** "Sobram R$ 148,60 a menos por mês." — com "Sobra" no singular até R$ 1,99. */
+function FraseResultado({ impacto }: { impacto: Centavos }) {
+  if (impacto === 0) return <>Não muda o que sobra no mês.</>
+  const verbo = Math.abs(impacto) < 200 ? 'Sobra' : 'Sobram'
+  return <>{verbo} <b class={impacto < 0 ? 'valor-menos' : 'valor-mais'}><Dinheiro v={Math.abs(impacto)} /></b> {impacto < 0 ? 'a menos' : 'a mais'} por mês.</>
+}
 
 /** "R$ 50 → R$ 42,50": antes e depois numa linha só. */
 function AntesDepois({ antes, depois }: { antes: Centavos; depois: Centavos }) {
@@ -81,38 +88,7 @@ export function Decidir() {
         </div>
       </fieldset>
 
-      {/* o efeito no bolso vem logo abaixo da escolha: aparece sem rolar e muda junto com os números de baixo */}
-      {s && res && (
-        <section class="cartao efeito" aria-live="polite" aria-label="Efeito no seu bolso">
-          {semNovoPreco ? (
-            <p class="efeito-sub">Digite o novo preço para ver a conta.</p>
-          ) : (
-            <>
-              <p class="efeito-rotulo">Caixa do mês</p>
-              <p class={`efeito-valor ${res.impactoMes < 0 ? 'valor-menos' : res.impactoMes > 0 ? 'valor-mais' : ''}`}><Dinheiro v={res.impactoMes} sinal /></p>
-              <p class="efeito-sub">
-                {res.impactoMes < 0 ? 'a menos' : res.impactoMes > 0 ? 'a mais' : 'sem mudança'} no “Sobrou no salão”, por mês.
-              </p>
-              <dl class="efeito-linhas">
-                {res.precoDepois !== s.preco && <div><dt>Preço</dt><dd><AntesDepois antes={s.preco} depois={res.precoDepois} /></dd></div>}
-                {res.custoProdutoDepois !== s.custoProduto && <div><dt>Produto</dt><dd><AntesDepois antes={s.custoProduto} depois={res.custoProdutoDepois} /></dd></div>}
-                <div><dt>Margem</dt><dd><AntesDepois antes={res.antes.margem} depois={res.depois.margem} /></dd></div>
-                {res.impactoMes < 0 && (
-                  <div>
-                    <dt>Clientela</dt>
-                    <dd>{res.atendimentosParaEmpatar === null
-                      ? 'nenhuma compensa'
-                      : <>{qtd} <span aria-hidden="true">→</span><span class="sr-only">passa para</span> <b>{qtd + res.atendimentosParaEmpatar}</b> por mês</>}</dd>
-                  </div>
-                )}
-              </dl>
-              {res.atendimentosParaEmpatar === null && <p class="efeito-sub">Com esse valor, o serviço não cobre nem o produto.</p>}
-              <p class="efeito-nota">Margem: o que sobra por atendimento. Clientela: atendimentos por mês para sobrar o mesmo. Conta aproximada, não é consultoria.</p>
-            </>
-          )}
-        </section>
-      )}
-
+      {/* ordem da conta: serviço → quanto muda → resultado (aparece sem rolar e muda junto com os números) */}
       {s && (
         <>
           <Escolha<string> rotulo="Serviço" estilo="linha" valor={s.id} opcoes={opcoesServico}
@@ -120,7 +96,38 @@ export function Decidir() {
           {cena === 'concorrente' && <CampoNumero id="desc" rotulo="Desconto" valor={desconto} aoMudar={setDesconto} sufixo="%" max={90} passo={5} />}
           {cena === 'dolar' && <CampoNumero id="dolar" rotulo="Quanto o produto subiu" valor={aumentoProduto} aoMudar={setAumentoProduto} sufixo="%" max={300} passo={5} />}
           {cena === 'aumento' && <CampoValor id="novo-preco" rotulo="Novo preço" valor={novoPreco} aoMudar={setNovoPreco} />}
-          <CampoNumero id="qtd" rotulo="Atendimentos por mês" dica={sugerido ? `Pelo seu histórico: ${sugerido} por mês.` : undefined}
+        </>
+      )}
+
+      {s && res && (
+        <section class="cartao efeito efeito-resultado" aria-live="polite" aria-label="Resultado">
+          {semNovoPreco ? (
+            <p class="efeito-sub">Digite o novo preço para ver a conta.</p>
+          ) : (
+            <>
+              <p class="efeito-rotulo">Sobrou no salão</p>
+              <p class="efeito-frase"><FraseResultado impacto={res.impactoMes} /></p>
+              {res.impactoMes < 0 && (
+                <p class="efeito-sub">
+                  {res.atendimentosParaEmpatar === null
+                    ? 'Com esse valor, o serviço não cobre nem o produto: mais clientes não resolvem.'
+                    : <>Para empatar: <b>{qtd + res.atendimentosParaEmpatar} clientes</b> em vez de {qtd}.</>}
+                </p>
+              )}
+              <dl class="efeito-linhas">
+                {res.precoDepois !== s.preco && <div><dt>Preço</dt><dd><AntesDepois antes={s.preco} depois={res.precoDepois} /></dd></div>}
+                {res.custoProdutoDepois !== s.custoProduto && <div><dt>Produto</dt><dd><AntesDepois antes={s.custoProduto} depois={res.custoProdutoDepois} /></dd></div>}
+                <div><dt>Sobra por atendimento</dt><dd><AntesDepois antes={res.antes.margem} depois={res.depois.margem} /></dd></div>
+              </dl>
+              <p class="efeito-nota">Conta aproximada, não é consultoria.</p>
+            </>
+          )}
+        </section>
+      )}
+
+      {s && (
+        <>
+          <CampoNumero id="qtd" rotulo="Clientes por mês neste serviço" dica={sugerido ? `Pelo seu histórico: ${sugerido} por mês.` : undefined}
             valor={qtd} aoMudar={(v) => setQtdManual(Math.round(v))} max={200} />
           {cena === 'concorrente' && res && res.impactoMes < 0 && (
             <Nota>Antes de baixar o preço de tudo, dá para testar uma oferta com prazo, um pacote ou uma condição só para clientes antigas.</Nota>

@@ -47,8 +47,54 @@ export function Mei() {
   const comps: string[] = []
   for (let c = inicio < ultimaComp ? inicio : ultimaComp; c <= ultimaComp; c = somarMeses(c, 1)) comps.push(c)
 
+  // o DAS que falta pagar vem primeiro (é o que pede ação); os já pagos ficam na lista de baixo
+  const situacoes = [...comps].reverse().map((c) => ({ c, s: situacaoDAS(e.config, c, dia, e.lancamentos) }))
+  const aPagar = situacoes.filter((x) => x.s !== 'pago')
+  const pagos = situacoes.filter((x) => x.s === 'pago')
+
+  function itemDAS({ c, s }: { c: string; s: ReturnType<typeof situacaoDAS> }) {
+    // pago pelo "Gastei → DAS do MEI": mostra o valor anotado e não tem o que desfazer aqui
+    const anotado = e.lancamentos.find((l) => l.tipo === 'saida' && l.categoria === 'das' && competenciaDAS(l) === c)
+    const marcado = e.config.dasPagos.includes(c)
+    const venc = vencimentoDAS(c)
+    const nome = `DAS de ${nomeMesCurto(c)}${c.slice(0, 4) !== String(ano) ? ` de ${c.slice(0, 4)}` : ''}`
+    return (
+      <li class="das">
+        <div class="das-topo">
+          <span class="das-nome">{nome}</span>
+          <Dinheiro v={anotado?.valor ?? e.config.valorDAS} class="das-valor" />
+        </div>
+        <div class="das-baixo">
+          {s === 'pago' ? (
+            <>
+              <span class="das-situacao"><IcCheck size={18} /> Pago{anotado && !marcado ? ' (anotado em Gastei)' : ''}</span>
+              {marcado && (
+                <button class="link" onClick={() => alternarDAS(c)} aria-label={`Desfazer: ${nome} não foi pago`}>Desfazer</button>
+              )}
+            </>
+          ) : (
+            <>
+              <span class="das-situacao">
+                {s === 'atrasado' ? `Venceu ${dataCurta(venc)}, sem marcar` : `Vence ${dataCurta(venc)} · em ${diasEntre(dia, venc)} ${diasEntre(dia, venc) === 1 ? 'dia' : 'dias'}`}
+              </span>
+              <button class="btn btn-pequeno btn-primario" aria-label={`Já paguei o ${nome}`}
+                onClick={() => { alternarDAS(c); avisar(`${nome}: marcado como pago.`, { rotulo: 'Desfazer', fazer: () => { if (estado.value.config.dasPagos.includes(c)) alternarDAS(c) } }) }}>Já paguei</button>
+            </>
+          )}
+        </div>
+      </li>
+    )
+  }
+
   return (
     <Pagina titulo="MEI em dia" voltarPara="mais">
+      {aPagar.length > 0 && (
+        <>
+          <h2 class="secao secao-primeira">DAS a pagar</h2>
+          <ul class="lista">{aPagar.map(itemDAS)}</ul>
+        </>
+      )}
+
       <Cartao>
         <p class="cartao-titulo">Quanto você cobrou em {ano}</p>
         <p class="destaque-valor pequeno"><Dinheiro v={fat} /></p>
@@ -72,42 +118,7 @@ export function Mei() {
           Pagar em dia mantém sua contribuição ao INSS (aposentadoria e auxílio-doença). O valor do seu DAS ({brl(e.config.valorDAS)}) dá para trocar em Ajustes.
         </p>
       </Detalhe>
-      <ul class="lista">
-        {[...comps].reverse().map((c) => {
-          const s = situacaoDAS(e.config, c, dia, e.lancamentos)
-          // pago pelo "Gastei → DAS do MEI": mostra o valor anotado e não tem o que desfazer aqui
-          const anotado = e.lancamentos.find((l) => l.tipo === 'saida' && l.categoria === 'das' && competenciaDAS(l) === c)
-          const marcado = e.config.dasPagos.includes(c)
-          const venc = vencimentoDAS(c)
-          const nome = `DAS de ${nomeMesCurto(c)}${c.slice(0, 4) !== String(ano) ? ` de ${c.slice(0, 4)}` : ''}`
-          return (
-            <li class="das">
-              <div class="das-topo">
-                <span class="das-nome">{nome}</span>
-                <Dinheiro v={anotado?.valor ?? e.config.valorDAS} class="das-valor" />
-              </div>
-              <div class="das-baixo">
-                {s === 'pago' ? (
-                  <>
-                    <span class="das-situacao"><IcCheck size={18} /> Pago{anotado && !marcado ? ' (anotado em Gastei)' : ''}</span>
-                    {marcado && (
-                      <button class="link" onClick={() => alternarDAS(c)} aria-label={`Desfazer: ${nome} não foi pago`}>Desfazer</button>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <span class="das-situacao">
-                      {s === 'atrasado' ? `Venceu ${dataCurta(venc)}, sem marcar` : `Vence ${dataCurta(venc)} · em ${diasEntre(dia, venc)} ${diasEntre(dia, venc) === 1 ? 'dia' : 'dias'}`}
-                    </span>
-                    <button class="btn btn-pequeno btn-primario" aria-label={`Já paguei o ${nome}`}
-                      onClick={() => { alternarDAS(c); avisar(`${nome}: marcado como pago.`, { rotulo: 'Desfazer', fazer: () => { if (estado.value.config.dasPagos.includes(c)) alternarDAS(c) } }) }}>Já paguei</button>
-                  </>
-                )}
-              </div>
-            </li>
-          )
-        })}
-      </ul>
+      {pagos.length > 0 && <ul class="lista">{pagos.map(itemDAS)}</ul>}
       <a class="btn btn-largo" href="https://www.gov.br/empresas-e-negocios/pt-br/empreendedor" target="_blank" rel="noopener noreferrer">Tirar o boleto no site oficial do MEI</a>
       <p class="muted pequeno">Também dá pelo app “MEI” da Receita Federal.</p>
 

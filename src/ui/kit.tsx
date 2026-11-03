@@ -104,12 +104,13 @@ export function Dinheiro({ v, sinal: comSinal, class: cls = '' }: { v: Centavos;
 }
 
 // ---------- campo de valor em reais ----------
-export function CampoValor({ valor, aoMudar, rotulo, autoFocus, id }: {
+export function CampoValor({ valor, aoMudar, rotulo, autoFocus, id, dica }: {
   valor: Centavos | null
   aoMudar: (v: Centavos | null) => void
   rotulo: string
   autoFocus?: boolean
   id: string
+  dica?: string
 }) {
   const [texto, setTexto] = useState(valor !== null && valor > 0 ? formatarEdicao(valor) : '')
   const ref = useRef<HTMLInputElement>(null)
@@ -124,7 +125,8 @@ export function CampoValor({ valor, aoMudar, rotulo, autoFocus, id }: {
   }, [autoFocus])
   return (
     <label class="campo campo-valor" for={id}>
-      <span class="campo-rotulo">{rotulo}</span>
+      {/* a dica fica na mesma linha do rótulo: não empurra o resto do formulário */}
+      <span class="campo-rotulo">{rotulo}{dica && <small class="rotulo-dica" id={`${id}-dica`}>{dica}</small>}</span>
       <span class="campo-caixa">
         <span class="campo-prefixo">R$</span>
         <input
@@ -133,6 +135,7 @@ export function CampoValor({ valor, aoMudar, rotulo, autoFocus, id }: {
           inputMode="decimal"
           autoComplete="off"
           placeholder="0,00"
+          aria-describedby={dica ? `${id}-dica` : undefined}
           value={texto}
           onInput={(e) => {
             const t = (e.currentTarget as HTMLInputElement).value.replace(/[^\d.,]/g, '')

@@ -21,7 +21,7 @@ export function Reserva() {
   return (
     <Pagina titulo={nomeDaReserva()} voltarPara="mais">
       <Cartao class="destaque">
-        <p class="destaque-rotulo">Guardado</p>
+        <p class="destaque-rotulo">Total na reserva</p>
         <p class="destaque-valor"><Dinheiro v={saldo} /></p>
         <p class="cartao-sub">
           {saldo > 0 ? <>Se o salão parar, daria para cerca de <b>{dias} {dias === 1 ? 'dia' : 'dias'}</b> de contas (conta aproximada).</> : 'Ainda não há reserva.'}
