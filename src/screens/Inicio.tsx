@@ -1,14 +1,15 @@
 import { useState } from 'preact/hooks'
+import type { JSX } from 'preact'
 import { custoMensal, diasDeFolego, fiadosAbertos, resumoDoMes, saldoReserva, situacaoDAS, vencimentoDAS } from '../domain/calc'
 import { dataCurta, hoje, nomeMesCurto, somarMeses, tituloMes } from '../domain/dates'
 import { brlCurto } from '../domain/money'
-import { estado, mesAtual, modo } from '../state/store'
-import { IcAlerta, IcCofre, IcConversa, IcMenos, IcNuvem, IcRecibo, IcSoma } from '../ui/icons'
+import { estado, mesAtual, modo, prefs } from '../state/store'
+import { IcAlerta, IcCasa, IcCofre, IcConversa, IcMenos, IcNuvem, IcRecibo, IcSoma } from '../ui/icons'
 import { Barra, Cartao, Dinheiro } from '../ui/kit'
 import { ir } from '../ui/router'
+import { AtendimentoRapido } from './AtendimentoRapido'
 import { EscrevaDoSeuJeito } from './EscrevaDoSeuJeito'
 import { estaInstalado } from './Instalar'
-import { prefs } from '../state/store'
 import { ListaLancamentos } from './Movimentos'
 
 function ouvir(entrou: number, saiu: number, praCasa: number, sobrou: number) {
@@ -18,6 +19,16 @@ function ouvir(entrou: number, saiu: number, praCasa: number, sobrou: number) {
   u.lang = 'pt-BR'
   speechSynthesis.cancel()
   speechSynthesis.speak(u)
+}
+
+interface Aviso {
+  chave: string
+  forte?: boolean
+  icone: JSX.Element
+  titulo: JSX.Element | string
+  texto: string
+  ir: string
+  rotulo: string
 }
 
 export function Inicio() {
@@ -39,6 +50,16 @@ export function Inicio() {
   // Kit de Resiliência: "no fim do mês, olhe três números". Nos primeiros dias do mês, mostra o fechamento do anterior.
   const mesPassado = somarMeses(mes, -1)
   const fechamento = Number(hoje().slice(8, 10)) <= 7 ? resumoDoMes(e.lancamentos, mesPassado) : null
+
+  // Um aviso por vez, o mais importante primeiro (tela simples para quem lê palavra por palavra).
+  const avisos: Aviso[] = []
+  if (das === 'atrasado') avisos.push({ chave: 'das', forte: true, icone: <IcAlerta />, titulo: 'DAS atrasado', texto: 'Pague o quanto antes para manter o INSS em dia.', ir: 'mais/mei', rotulo: 'Abrir MEI em dia' })
+  if (sugerirInstalar) avisos.push({ chave: 'instalar', icone: <IcCasa />, titulo: 'Instale o Fôlego no celular', texto: 'Abre como app, funciona sem internet e protege melhor seus dados.', ir: 'mais/instalar', rotulo: 'Ver como instalar' })
+  if (totalFiado > 0) avisos.push({ chave: 'fiado', icone: <IcConversa />, titulo: <>A receber: <Dinheiro v={totalFiado} curto /></>, texto: fiados.length === 1 ? '1 cliente vai pagar depois.' : `${fiados.length} clientes vão pagar depois.`, ir: 'mais/fiado', rotulo: 'Ver quem vai pagar depois' })
+  if (das === 'vence-logo') avisos.push({ chave: 'das', icone: <IcRecibo />, titulo: 'DAS vence logo', texto: `Vence em ${dataCurta(vencimentoDAS(compDAS))}. Já pagou? Toque para marcar.`, ir: 'mais/mei', rotulo: 'Abrir MEI em dia' })
+  if (precisaBackup) avisos.push({ chave: 'backup', icone: <IcNuvem />, titulo: 'Faça uma cópia de segurança', texto: 'Seus dados ficam só neste celular. Guarde uma cópia no WhatsApp ou no Drive.', ir: 'mais/backup', rotulo: 'Fazer cópia de segurança' })
+  if (das === 'a-vencer') avisos.push({ chave: 'das', icone: <IcRecibo />, titulo: 'DAS do mês', texto: `Vence em ${dataCurta(vencimentoDAS(compDAS))}. Já pagou? Toque para marcar.`, ir: 'mais/mei', rotulo: 'Abrir MEI em dia' })
+  const aviso = avisos[0]
 
   return (
     <section class="pagina inicio">
@@ -74,28 +95,20 @@ export function Inicio() {
           </p>
         )}
 
-        {sugerirInstalar && (
-          <div class="cartao alerta instalar">
+        {aviso && (
+          <Cartao class={`alerta ${aviso.forte ? 'alerta-forte' : ''}`} onClick={() => ir(aviso.ir)} rotulo={aviso.rotulo}>
+            {aviso.icone}
             <span>
-              <b>Instale o Fôlego no celular</b>
-              <small>Fica mais fácil de abrir, funciona sem internet e protege melhor seus dados.</small>
+              <b>{aviso.titulo}</b>
+              <small>{aviso.texto}</small>
             </span>
-            <div class="instalar-acoes">
-              <button class="btn btn-pequeno btn-primario" onClick={() => ir('mais/instalar')}>Como instalar</button>
-              <button class="btn btn-pequeno" onClick={() => (prefs.value = { ...prefs.value, ocultarInstalar: true })}>Agora não</button>
-            </div>
-          </div>
-        )}
-
-        {fechamento && (fechamento.entrou > 0 || fechamento.saiu > 0) && (
-          <Cartao class="fechamento" onClick={() => ir(`movimentos/${mesPassado}`)} rotulo={`Ver o fechamento de ${nomeMesCurto(mesPassado)}`}>
-            <p class="cartao-titulo">Fechamento de {nomeMesCurto(mesPassado)}</p>
-            <p class="cartao-sub">
-              Entrou <b><Dinheiro v={fechamento.entrou} curto /></b> · saiu <b><Dinheiro v={fechamento.saiu} curto /></b> ·
-              o salão gerou <b class={fechamento.resultado < 0 ? 'valor-menos' : 'valor-mais'}><Dinheiro v={fechamento.resultado} curto /></b>
-            </p>
           </Cartao>
         )}
+        {aviso?.chave === 'instalar' && (
+          <button class="link-sutil" onClick={() => (prefs.value = { ...prefs.value, ocultarInstalar: true })}>Agora não</button>
+        )}
+
+        <AtendimentoRapido />
 
         <div class="acoes-grandes">
           <button class="btn-grande btn-entrada" onClick={() => ir('lancar/entrada')}>
@@ -109,8 +122,6 @@ export function Inicio() {
           <button class="btn-pilula" onClick={() => ir('lancar/retirada')}>🏡 Tirei pra casa</button>
           <button class="btn-pilula" onClick={() => ir('lancar/reserva')}>🐷 Guardei</button>
         </div>
-
-        <EscrevaDoSeuJeito />
 
         <Cartao class="folego" onClick={() => ir('mais/reserva')} rotulo="Abrir a reserva">
           <div class="folego-topo">
@@ -132,37 +143,17 @@ export function Inicio() {
           <p class="cartao-sub pequeno">Meta: {brlCurto(e.config.metaReserva)}</p>
         </Cartao>
 
-        {(totalFiado > 0 || das !== 'pago' || precisaBackup) && (
-          <div class="alertas">
-            {totalFiado > 0 && (
-              <Cartao class="alerta" onClick={() => ir('mais/fiado')} rotulo="Ver quem está devendo">
-                <IcConversa />
-                <span>
-                  <b>A receber: <Dinheiro v={totalFiado} curto /></b>
-                  <small>{fiados.length === 1 ? '1 cliente vai pagar depois' : `${fiados.length} clientes vão pagar depois`}</small>
-                </span>
-              </Cartao>
-            )}
-            {das !== 'pago' && (
-              <Cartao class={`alerta ${das === 'atrasado' ? 'alerta-forte' : ''}`} onClick={() => ir('mais/mei')} rotulo="Abrir MEI em dia">
-                {das === 'atrasado' ? <IcAlerta /> : <IcRecibo />}
-                <span>
-                  <b>{das === 'atrasado' ? 'DAS atrasado' : das === 'vence-logo' ? 'DAS vence logo' : 'DAS do mês'}</b>
-                  <small>{das === 'atrasado' ? 'Pague o quanto antes para manter o INSS em dia.' : `Vence em ${dataCurta(vencimentoDAS(compDAS))}. Já pagou? Toque para marcar.`}</small>
-                </span>
-              </Cartao>
-            )}
-            {precisaBackup && (
-              <Cartao class="alerta" onClick={() => ir('mais/backup')} rotulo="Fazer backup">
-                <IcNuvem />
-                <span>
-                  <b>Faça uma cópia de segurança</b>
-                  <small>Seus dados ficam só neste celular. Guarde uma cópia no WhatsApp ou no Drive.</small>
-                </span>
-              </Cartao>
-            )}
-          </div>
+        {fechamento && (fechamento.entrou > 0 || fechamento.saiu > 0) && (
+          <Cartao class="fechamento" onClick={() => ir(`movimentos/${mesPassado}`)} rotulo={`Ver o fechamento de ${nomeMesCurto(mesPassado)}`}>
+            <p class="cartao-titulo">Fechamento de {nomeMesCurto(mesPassado)}</p>
+            <p class="cartao-sub">
+              Entrou <b><Dinheiro v={fechamento.entrou} curto /></b> · saiu <b><Dinheiro v={fechamento.saiu} curto /></b> ·
+              o salão gerou <b class={fechamento.resultado < 0 ? 'valor-menos' : 'valor-mais'}><Dinheiro v={fechamento.resultado} curto /></b>
+            </p>
+          </Cartao>
         )}
+
+        <EscrevaDoSeuJeito />
 
         <h2 class="secao">Hoje</h2>
         {deHoje.length === 0 ? (

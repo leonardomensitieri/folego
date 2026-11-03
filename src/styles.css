@@ -347,7 +347,12 @@ a.linha { color: inherit; text-decoration: none; }
 
 .linha-links { display: flex; justify-content: space-between; gap: 12px; margin-top: -6px; }
 .linha-links .link-sutil { margin-top: 0; }
-.instalar { flex-direction: column; align-items: stretch; }
-.instalar-acoes { display: flex; gap: 8px; }
-.instalar-acoes .btn { flex: 1; }
 .passos-lista { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; }
+
+.rapido { display: flex; flex-direction: column; gap: 8px; }
+.rapido .secao { margin-top: 0; }
+.rapido-servicos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.rapido-pagou { background: var(--superficie); border: 1.5px solid var(--primaria); border-radius: var(--raio); padding: 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--sombra); }
+.rapido-pagou .campo-rotulo { margin: 0; }
+.rapido-formas { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.rapido-formas .rapido-fiado { grid-column: 1 / -1; }
