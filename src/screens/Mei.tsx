@@ -59,7 +59,7 @@ export function Mei() {
       <p class="muted pequeno">Toque no mês para marcar ou desmarcar como pago. O boleto se emite no app oficial MEI ou no Portal do Empreendedor.</p>
 
       <h2 class="secao">Relatório mensal de receitas</h2>
-      <p class="muted pequeno">O app soma o que entrou no mês. Imprima ou salve em PDF e guarde junto com as notas.</p>
+      <p class="muted pequeno">Preencha até o dia 20 do mês seguinte. O app soma o que entrou no mês; imprima ou salve em PDF e guarde junto com as notas.</p>
       <ul class="lista">
         {[0, 1, 2].map((n) => {
           const m = somarMeses(mesAtual.value, -n)

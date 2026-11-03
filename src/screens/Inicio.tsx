@@ -7,7 +7,18 @@ import { IcAlerta, IcCofre, IcConversa, IcMenos, IcNuvem, IcRecibo, IcSoma } fro
 import { Barra, Cartao, Dinheiro } from '../ui/kit'
 import { ir } from '../ui/router'
 import { EscrevaDoSeuJeito } from './EscrevaDoSeuJeito'
+import { estaInstalado } from './Instalar'
+import { prefs } from '../state/store'
 import { ListaLancamentos } from './Movimentos'
+
+function ouvir(entrou: number, saiu: number, praCasa: number, sobrou: number) {
+  const falar = (c: number) => `${Math.floor(Math.abs(c) / 100)} reais${Math.abs(c) % 100 ? ` e ${Math.abs(c) % 100} centavos` : ''}`
+  const texto = `Este mês entrou ${falar(entrou)}. Saiu ${falar(saiu)}. Pra casa, ${falar(praCasa)}. ${sobrou < 0 ? 'Faltaram' : 'Sobrou no salão'} ${falar(sobrou)}.`
+  const u = new SpeechSynthesisUtterance(texto)
+  u.lang = 'pt-BR'
+  speechSynthesis.cancel()
+  speechSynthesis.speak(u)
+}
 
 export function Inicio() {
   const e = estado.value
@@ -21,7 +32,8 @@ export function Inicio() {
   const compDAS = somarMeses(mes, -1)
   const das = situacaoDAS(e.config, compDAS, hoje())
   const diasSemBackup = e.config.ultimoBackup ? Math.floor((Date.now() - e.config.ultimoBackup) / 86_400_000) : null
-  const precisaBackup = modo.value === 'real' && e.lancamentos.length >= 10 && (diasSemBackup === null || diasSemBackup >= 30)
+  const precisaBackup = modo.value === 'real' && e.lancamentos.length >= 5 && (diasSemBackup === null || diasSemBackup >= 7)
+  const sugerirInstalar = modo.value === 'real' && !estaInstalado() && !prefs.value.ocultarInstalar
   const deHoje = e.lancamentos.filter((l) => l.data === hoje()).sort((a, b) => b.criadoEm - a.criadoEm)
   const [mostrarComo, setMostrarComo] = useState(false)
   // Kit de Resiliência: "no fim do mês, olhe três números". Nos primeiros dias do mês, mostra o fechamento do anterior.
@@ -47,14 +59,32 @@ export function Inicio() {
             <span><small>Pra casa</small><Dinheiro v={r.praCasa} curto /></span>
           </div>
         </Cartao>
-        <button class="link-sutil" onClick={() => setMostrarComo(!mostrarComo)} aria-expanded={mostrarComo}>
-          {mostrarComo ? 'Fechar explicação' : 'Como esse número é calculado?'}
-        </button>
+        <div class="linha-links">
+          <button class="link-sutil" onClick={() => setMostrarComo(!mostrarComo)} aria-expanded={mostrarComo}>
+            {mostrarComo ? 'Fechar explicação' : 'Como esse número é calculado?'}
+          </button>
+          {'speechSynthesis' in window && (
+            <button class="link-sutil" onClick={() => ouvir(r.entrou, r.saiu, r.praCasa, r.sobrou)}>🔊 Ouvir</button>
+          )}
+        </div>
         {mostrarComo && (
           <p class="explica">
             <b>Sobrou</b> = o que entrou (já sem a taxa da maquininha) − os gastos do salão − o que você tirou pra casa.
             Fiado só conta quando a cliente paga.
           </p>
+        )}
+
+        {sugerirInstalar && (
+          <div class="cartao alerta instalar">
+            <span>
+              <b>Instale o Fôlego no celular</b>
+              <small>Fica mais fácil de abrir, funciona sem internet e protege melhor seus dados.</small>
+            </span>
+            <div class="instalar-acoes">
+              <button class="btn btn-pequeno btn-primario" onClick={() => ir('mais/instalar')}>Como instalar</button>
+              <button class="btn btn-pequeno" onClick={() => (prefs.value = { ...prefs.value, ocultarInstalar: true })}>Agora não</button>
+            </div>
+          </div>
         )}
 
         {fechamento && (fechamento.entrou > 0 || fechamento.saiu > 0) && (

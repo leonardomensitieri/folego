@@ -25,6 +25,7 @@ export const erroArmazenamento = signal<string | null>(null)
 
 export interface Prefs {
   letraGrande: boolean
+  ocultarInstalar?: boolean
 }
 export const prefs = signal<Prefs>(lerPrefs())
 
@@ -63,7 +64,7 @@ export async function iniciar() {
     erroArmazenamento.value = 'Não consegui abrir a memória do celular. Seus dados podem não ser salvos nesta janela (ex.: navegação anônima).'
   }
   carregado.value = true
-  pedirPersistencia()
+  pedirPersistencia(false)
 }
 
 function migrar(e: Estado): Estado {
@@ -82,11 +83,12 @@ function novoDemo(): Estado {
   return estadoDemo(mesDe(d), Number(d.slice(8, 10)))
 }
 
-async function pedirPersistencia() {
+/** Só consulta ao abrir; o pedido de verdade acontece no primeiro salvamento (gesto da pessoa). */
+async function pedirPersistencia(pedir: boolean) {
   try {
     if (navigator.storage?.persist) {
       const ja = await navigator.storage.persisted()
-      armazenamentoPersistente.value = ja || (await navigator.storage.persist())
+      armazenamentoPersistente.value = ja || (pedir ? await navigator.storage.persist() : false)
     }
   } catch {
     armazenamentoPersistente.value = null
@@ -123,6 +125,7 @@ export function novoId(): string {
 // ---------- ações ----------
 
 export function adicionarLancamento(l: Omit<Lancamento, 'id' | 'criadoEm'>): Lancamento {
+  if (armazenamentoPersistente.value !== true && modo.value === 'real') pedirPersistencia(true)
   const novo: Lancamento = { ...l, id: novoId(), criadoEm: Date.now() }
   mudar((e) => ({ ...e, lancamentos: [...e.lancamentos, novo] }))
   return novo

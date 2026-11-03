@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks'
-import { gerarBackup, nomeArquivoBackup, paraCSV } from '../domain/backup'
+import { gerarBackup, lerBackup, nomeArquivoBackup, paraCSV } from '../domain/backup'
 import { estado, importarBackup, modo, registrarBackupFeito } from '../state/store'
 import { avisar, Nota, Pagina } from '../ui/kit'
 
@@ -51,7 +51,16 @@ export function Backup() {
       return
     }
     f.text().then((t) => {
-      if (!confirmarTroca()) return
+      const previa = lerBackup(t)
+      if (!previa.ok) {
+        setErro(previa.erro)
+        return
+      }
+      const datas = previa.estado.lancamentos.map((l) => l.data).sort()
+      const resumo = previa.estado.lancamentos.length
+        ? `${previa.estado.lancamentos.length} lançamentos, de ${fmt(datas[0])} a ${fmt(datas[datas.length - 1])}`
+        : 'nenhum lançamento'
+      if (!confirmarTroca(resumo)) return
       const msg = importarBackup(t)
       setErro(msg)
       if (!msg) avisar('Backup carregado!')
@@ -84,7 +93,11 @@ export function Backup() {
   )
 }
 
-function confirmarTroca(): boolean {
+function confirmarTroca(resumo: string): boolean {
   // confirm() é simples e funciona em todos os celulares; aqui a troca é irreversível, então vale a pausa.
-  return window.confirm('Trocar os dados deste celular pelos da cópia?')
+  return window.confirm(`A cópia tem ${resumo}.\n\nTrocar os dados deste celular pelos da cópia?`)
+}
+
+function fmt(d: string) {
+  return d.split('-').reverse().join('/')
 }

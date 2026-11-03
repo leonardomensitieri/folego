@@ -13,6 +13,7 @@ import { Fornecedores } from './screens/Fornecedores'
 import { Mei, RelatorioMei } from './screens/Mei'
 import { Backup } from './screens/Backup'
 import { BoasVindas, Comecar } from './screens/Comecar'
+import { Instalar } from './screens/Instalar'
 
 const ABAS = [
   { id: '', rotulo: 'Início', Icone: IcCasa },
@@ -55,6 +56,7 @@ function Tela() {
         case 'ajustes': return <Ajustes />
         case 'privacidade': return <Privacidade />
         case 'sobre': return <Sobre />
+        case 'instalar': return <Instalar />
         default: return <Mais />
       }
     case 'comecar':

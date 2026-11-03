@@ -343,3 +343,10 @@ main { padding-bottom: 32px; }
 @media (min-width: 600px) {
   .cenas { grid-template-columns: repeat(3, 1fr); }
 }
+
+.linha-links { display: flex; justify-content: space-between; gap: 12px; margin-top: -6px; }
+.linha-links .link-sutil { margin-top: 0; }
+.instalar { flex-direction: column; align-items: stretch; }
+.instalar-acoes { display: flex; gap: 8px; }
+.instalar-acoes .btn { flex: 1; }
+.passos-lista { margin: 0; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; }

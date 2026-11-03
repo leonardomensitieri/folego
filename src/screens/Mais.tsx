@@ -3,9 +3,10 @@ import { fiadosAbertos, saldoReserva } from '../domain/calc'
 import { brlCurto } from '../domain/money'
 import type { Centavos } from '../domain/types'
 import { apagarTudoReal, armazenamentoPersistente, atualizarConfig, estado, modo, prefs, recomecarDemo, temDadosReais, trocarModo } from '../state/store'
-import { IcAjuste, IcCaminhao, IcCofre, IcConversa, IcEscudo, IcInfo, IcNuvem, IcPessoa, IcRecibo } from '../ui/icons'
+import { IcAjuste, IcCaminhao, IcCasa, IcCofre, IcConversa, IcEscudo, IcInfo, IcNuvem, IcPessoa, IcRecibo } from '../ui/icons'
 import { avisar, CampoNumero, CampoValor, Linha, linkWhatsApp, Nota, Pagina } from '../ui/kit'
 import { ir, voltar } from '../ui/router'
+import { estaInstalado } from './Instalar'
 
 export function Mais() {
   const e = estado.value
@@ -18,6 +19,7 @@ export function Mais() {
         <li><Linha icone={<IcCaminhao />} titulo="Fornecedores" sub="Compare preços antes de comprar" onClick={() => ir('mais/fornecedores')} /></li>
         <li><Linha icone={<IcRecibo />} titulo="MEI em dia" sub="DAS, limite e relatório mensal" onClick={() => ir('mais/mei')} /></li>
         <li><Linha icone={<IcConversa />} titulo="Mensagens prontas" sub="Aviso de ausência, retorno, cobrança" onClick={() => ir('mais/mensagens')} /></li>
+        {!estaInstalado() && <li><Linha icone={<IcCasa />} titulo="Instalar no celular" sub="Abrir como app e proteger os dados" onClick={() => ir('mais/instalar')} /></li>}
         <li><Linha icone={<IcNuvem />} titulo="Cópia de segurança" sub="Guardar e voltar seus dados" onClick={() => ir('mais/backup')} /></li>
         <li><Linha icone={<IcAjuste />} titulo="Ajustes" sub="Salário, meta, taxas da maquininha" onClick={() => ir('mais/ajustes')} /></li>
         <li><Linha icone={<IcEscudo />} titulo="Privacidade e limites" sub="Onde ficam seus dados" onClick={() => ir('mais/privacidade')} /></li>
@@ -91,11 +93,16 @@ export function Privacidade() {
     <Pagina titulo="Privacidade e limites" voltarPara="mais">
       <div class="texto">
         <h2>Onde ficam seus dados</h2>
-        <p>Tudo o que você lança fica guardado <b>só neste celular</b>, dentro do navegador. O Fôlego não tem servidor, não pede cadastro, não usa senha e não envia seus números para ninguém — nem para a faculdade, nem para inteligência artificial.</p>
-        <p>O app só usa a internet para se atualizar. Depois de aberto uma vez, funciona sem internet.</p>
+        <p>Tudo o que você lança fica guardado <b>só neste celular</b>, dentro do navegador. O Fôlego não tem servidor, não pede cadastro, não usa senha e não envia seus números para ninguém — nem para a equipe do projeto, nem para a faculdade, nem para inteligência artificial.</p>
+        <p>O app só usa a internet para se atualizar. Para isso o celular baixa os arquivos do app do GitHub (serviço que hospeda o site), que, como todo site, registra o endereço de internet (IP) do aparelho. Depois de aberto uma vez, funciona sem internet.</p>
+        <h2>Para que serve</h2>
+        <p>Organizar o que entra e sai do seu salão, acompanhar sua reserva e montar o relatório mensal do MEI. Os dados ficam até você apagar.</p>
+        <h2>Cópia de segurança</h2>
+        <p>Se você mandar a cópia de segurança por WhatsApp, e-mail ou Drive, o arquivo passa por esses serviços. Guarde num lugar só seu.</p>
         <p>Armazenamento protegido contra limpeza automática: <b>{armazenamentoPersistente.value === true ? 'sim' : armazenamentoPersistente.value === false ? 'não garantido neste navegador' : 'não informado'}</b>. Por isso, faça cópias de segurança.</p>
         <h2>O que o app guarda</h2>
         <p>Valores, datas, serviços, gastos e, se você quiser, o primeiro nome de quem ficou devendo. Não guarda telefone, CPF, endereço nem foto.</p>
+        <p>Se você anotar nomes de clientes, quem cuida desses dados é você: anote só o necessário (um apelido basta). Use também o bloqueio de tela do celular.</p>
         <h2>Você manda nos seus dados</h2>
         <p>Você pode fazer uma cópia, levar para outro celular ou apagar tudo em Ajustes. Ao apagar, não sobra nada em lugar nenhum.</p>
         <h2>Limites</h2>
