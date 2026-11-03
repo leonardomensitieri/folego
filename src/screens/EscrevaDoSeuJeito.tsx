@@ -1,14 +1,16 @@
 import { useState } from 'preact/hooks'
-import { fiadosAbertos, taxaDaForma } from '../domain/calc'
-import { dataCurta, hoje } from '../domain/dates'
+import { acharFiado, competenciaDAS, fiadosAbertos, saldoReserva, taxaDaForma } from '../domain/calc'
+import { LIMITES } from '../domain/backup'
+import { dataCurta, hoje, nomeMesCurto } from '../domain/dates'
 import { brl } from '../domain/money'
 import { interpretar, type Interpretacao } from '../domain/parser'
+import type { Lancamento } from '../domain/types'
 import { adicionarLancamento, atualizarLancamento, estado, marcarRecebido, removerLancamento } from '../state/store'
 import { IcTeclado } from '../ui/icons'
 import { avisar } from '../ui/kit'
 import { ir } from '../ui/router'
 import { rascunho } from './Lancar'
-import { nomeCategoria, nomeForma, ROTULO_TIPO } from '../ui/nomes'
+import { nomeCategoria, nomeForma, ROTULO_TIPO, TEXTO_RESERVA_USADA } from '../ui/nomes'
 
 /**
  * Lançar escrevendo (ou ditando pelo microfone do teclado) uma frase curta.
@@ -25,10 +27,13 @@ export function EscrevaDoSeuJeito() {
     setLido(interpretar(texto, e.servicos, e.categorias))
   }
 
-  // "recebi o fiado da Ana": procura o fiado aberto dela
-  const fiadoAQuitar = lido?.quitarFiado
-    ? fiadosAbertos(e.lancamentos).find((l) => lido.cliente && l.cliente?.toLowerCase() === lido.cliente.toLowerCase())
-    : undefined
+  // "recebi o fiado da Ana": procura o fiado aberto dela (sem ligar para acento: "ines" acha "Inês")
+  const fiadoAQuitar = lido?.quitarFiado ? acharFiado(fiadosAbertos(e.lancamentos), lido.descricao ?? '', lido.cliente) : undefined
+  // resgate: só sai o que tem na reserva
+  const naReserva = Math.max(0, saldoReserva(e.lancamentos))
+  const valorFinal = lido?.valor != null && lido.tipo === 'resgate' ? Math.min(lido.valor, naReserva) : lido?.valor ?? null
+  const ehDAS = lido?.tipo === 'saida' && lido.categoria === 'das'
+  const competencia = ehDAS ? lido.competencia ?? competenciaDAS({ data: lido.data }) : undefined
 
   function salvar() {
     if (!lido) return
@@ -45,33 +50,45 @@ export function EscrevaDoSeuJeito() {
       })
       return
     }
-    if (lido.valor === null) return
-    const partes = lido.itens ?? [{ categoria: lido.categoria, valor: lido.valor }]
+    if (valorFinal === null || valorFinal <= 0) return
+    const partes = lido.itens ?? [{ categoria: lido.categoria, valor: valorFinal, forma: lido.forma }]
     const guardarTexto = lido.categoria === 'outro-servico' || lido.tipo === 'saida'
-    const novos = partes.map((p) =>
-      adicionarLancamento({
-        data: lido.data,
-        tipo: lido.tipo,
-        valor: p.valor,
-        taxa: lido.tipo === 'entrada' && lido.recebido ? taxaDaForma(p.valor, lido.forma, e.config.taxas) : 0,
-        forma: lido.tipo === 'entrada' ? lido.forma : undefined,
-        categoria: p.categoria,
-        cliente: lido.cliente,
-        descricao: guardarTexto ? lido.descricao : undefined,
-        recebido: lido.recebido,
-      }),
-    )
+    const novos = partes
+      .map((p) =>
+        adicionarLancamento({
+          data: lido.data,
+          tipo: lido.tipo,
+          valor: p.valor,
+          taxa: lido.tipo === 'entrada' && lido.recebido ? taxaDaForma(p.valor, p.forma, e.config.taxas) : 0,
+          forma: lido.tipo === 'entrada' ? p.forma : undefined,
+          categoria: p.categoria,
+          cliente: lido.cliente,
+          descricao: guardarTexto ? lido.descricao : undefined,
+          recebido: lido.recebido,
+          competencia,
+        }),
+      )
+      .filter((n): n is Lancamento => n !== null)
+    if (novos.length === 0) return
     setTexto('')
     setLido(null)
-    avisar(novos.length > 1 ? `${novos.length} anotações feitas!` : 'Anotado!', { rotulo: 'Desfazer', fazer: () => novos.forEach((n) => removerLancamento(n.id)) })
+    avisar(novos.length > 1 ? `${novos.length} anotações feitas!` : 'Anotado!', {
+      rotulo: 'Desfazer',
+      fazer: () => {
+        const desfeitos = novos.filter((n) => removerLancamento(n.id))
+        if (desfeitos.length < novos.length) avisar(TEXTO_RESERVA_USADA)
+      },
+    })
   }
 
   function corrigir() {
     if (!lido) return
     // passa o rascunho em memória (não no endereço da página, que fica no histórico do navegador)
-    rascunho.value = { valor: lido.valor, categoria: lido.categoria, forma: lido.forma, fiado: !lido.recebido, cliente: lido.cliente }
+    rascunho.value = { valor: valorFinal, categoria: lido.categoria, forma: lido.forma, fiado: !lido.recebido, cliente: lido.cliente, data: lido.data, competencia }
     ir(`lancar/${lido.tipo}`)
   }
+
+  const formasDiferentes = lido?.itens && new Set(lido.itens.map((i) => i.forma)).size > 1
 
   return (
     <div class="escreva">
@@ -81,6 +98,7 @@ export function EscrevaDoSeuJeito() {
         </label>
         <div class="escreva-linha">
           <input id="escreva" value={texto} placeholder="ex.: corte 50 pix" autoComplete="off" enterKeyHint="go" aria-describedby="escreva-dica"
+            maxLength={LIMITES.descricao}
             onInput={(ev) => { setTexto((ev.currentTarget as HTMLInputElement).value); setLido(null) }} />
           <button type="submit" class="btn btn-primario" disabled={!texto.trim()}>OK</button>
         </div>
@@ -111,7 +129,12 @@ export function EscrevaDoSeuJeito() {
                   <button class="btn" onClick={() => ir('mais/fiado')}>Ver a lista de fiado</button>
                 </>
               )
-            ) : lido.valor === null ? (
+            ) : lido.tipo === 'resgate' && naReserva <= 0 ? (
+              <>
+                <p>A reserva está vazia, então não tem o que tirar dela.</p>
+                <button class="btn" onClick={() => ir('mais/reserva')}>Ver a reserva</button>
+              </>
+            ) : valorFinal === null || valorFinal <= 0 ? (
               <>
                 <p>Não achei o valor. Escreva com o número, por exemplo: <b>“{texto} 50”</b>.</p>
                 <button class="btn" onClick={corrigir}>Anotar pelo formulário</button>
@@ -122,16 +145,19 @@ export function EscrevaDoSeuJeito() {
                 {lido.itens ? (
                   <ul class="entendi-itens">
                     {lido.itens.map((i) => (
-                      <li><b>{ROTULO_TIPO[lido.tipo]}</b> · {nomeCategoria(e, { tipo: lido.tipo, categoria: i.categoria })} · <b>{brl(i.valor)}</b></li>
+                      <li><b>{ROTULO_TIPO[lido.tipo]}</b> · {nomeCategoria(e, { tipo: lido.tipo, categoria: i.categoria })} · <b>{brl(i.valor)}</b>{formasDiferentes && ` · ${nomeForma(i.forma)}`}</li>
                     ))}
                   </ul>
                 ) : (
                   <p class="entendi-linha">
-                    <b>{ROTULO_TIPO[lido.tipo]}</b> · {nomeCategoria(e, lido)} · <b>{brl(lido.valor)}</b>
+                    <b>{ROTULO_TIPO[lido.tipo]}</b> · {nomeCategoria(e, lido)}{competencia && ` de ${nomeMesCurto(competencia)}`} · <b>{brl(valorFinal)}</b>
                   </p>
                 )}
+                {lido.tipo === 'resgate' && lido.valor !== null && lido.valor > valorFinal && (
+                  <p class="campo-dica">Você escreveu {brl(lido.valor)}, mas na reserva só tem {brl(naReserva)}. Vai sair {brl(valorFinal)}.</p>
+                )}
                 <p class="entendi-linha">
-                  {lido.tipo === 'entrada' && (lido.recebido ? nomeForma(lido.forma) : 'fiado')}
+                  {lido.tipo === 'entrada' && !formasDiferentes && (lido.recebido ? nomeForma(lido.forma) : 'fiado')}
                   {lido.cliente && ` · ${lido.cliente}`}
                   {lido.data !== hoje() && ` · ${dataCurta(lido.data)}`}
                 </p>

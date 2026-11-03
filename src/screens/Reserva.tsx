@@ -43,8 +43,9 @@ export function Reserva() {
       <details class="detalhe">
         <summary>Como o fôlego é calculado</summary>
         <p class="explica">
-          Fôlego = dinheiro guardado ÷ custo de um dia. O custo do mês ({brlCurto(custo)}) é a média dos gastos do salão
-          dos últimos 3 meses mais o seu salário (ou o que você tirou pra casa, se foi mais). Sem histórico, usamos os valores dos Ajustes.
+          Fôlego = dinheiro guardado ÷ custo de um dia. Para não prometer fôlego a mais, o custo do mês ({brlCurto(custo)}) é o
+          maior entre dois números: o que você pôs nos Ajustes (gasto do salão mais o seu salário) e a média dos últimos 3 meses
+          (gastos do salão mais o seu salário, ou o que você tirou pra casa, se foi mais). Sem histórico, vale o dos Ajustes.
         </p>
         <p class="explica">Use a reserva só para emergências do salão: equipamento que quebrou, semana sem atender, conta inesperada.</p>
       </details>

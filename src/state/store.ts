@@ -2,9 +2,10 @@ import { computed, effect, signal } from '@preact/signals'
 import { createStore, del, get, set } from 'idb-keyval'
 import { hoje, mesDe } from '../domain/dates'
 import { estadoInicial } from '../domain/defaults'
-import { estadoDemo } from '../domain/demo'
-import { FORMATO_BACKUP, lerBackup } from '../domain/backup'
-import { saldoReserva } from '../domain/calc'
+import { estadoDemo, VERSAO_DEMO } from '../domain/demo'
+import { conferirEstado, LIMITES, lerBackup } from '../domain/backup'
+import { reservaFicaNegativa, saldoReserva } from '../domain/calc'
+import { cortarTexto } from '../domain/texto'
 import type { Config, Estado, Fornecedor, Lancamento, Servico } from '../domain/types'
 
 /**
@@ -15,6 +16,10 @@ export type Modo = 'real' | 'demo'
 
 const db = createStore('folego', 'dados')
 const CHAVE: Record<Modo, string> = { real: 'estado-real-v1', demo: 'estado-demo-v1' }
+/** Cópia de como os dados estavam antes de um conserto na leitura (nada some de vez). */
+const CHAVE_COMO_ESTAVA = `${CHAVE.real}:como-estava`
+/** Leitura do IndexedDB que não responde nesse tempo conta como falha (às vezes trava sem dar erro). */
+export const PRAZO_LEITURA_MS = 5_000
 const CHAVE_MODO = 'folego:modo'
 const CHAVE_PREFS = 'folego:prefs'
 
@@ -30,6 +35,8 @@ export const erroArmazenamento = signal<string | null>(null)
 export const leituraFalhou = signal(false)
 /** Dados guardados que não passaram na conferência, para ela poder baixar como estão. */
 export const dadosComDefeito = signal<unknown>(null)
+/** A leitura achou defeito pequeno e consertou (anotações separadas, ajustes que voltaram ao padrão). */
+export const dadosConsertados = signal<{ separadas: number; ajustes: number } | null>(null)
 
 export interface Prefs {
   letraGrande: boolean
@@ -66,11 +73,23 @@ document.addEventListener('visibilitychange', () => {
 export const mesAtual = computed(() => mesDe(dataHoje.value))
 export const temDadosReais = signal(false)
 
-/** Confere o que estava guardado com as mesmas regras da cópia de segurança. */
-function conferir(salvo: unknown): Estado | null {
-  const r = lerBackup(JSON.stringify({ formato: FORMATO_BACKUP, versao: 1, estado: salvo }))
-  return r.ok ? r.estado : null
+class PrazoEsgotado extends Error {}
+
+/** Promessa com tempo-limite: se o IndexedDB não responder, vira erro em vez de deixar o app preso em "Abrindo…". */
+function comPrazo<T>(p: Promise<T>, ms = PRAZO_LEITURA_MS): Promise<T> {
+  return new Promise<T>((ok, falha) => {
+    const t = setTimeout(() => falha(new PrazoEsgotado()), ms)
+    p.then(
+      (v) => { clearTimeout(t); ok(v) },
+      (err) => { clearTimeout(t); falha(err) },
+    )
+  })
 }
+
+// A demonstração é guardada com um carimbo (dia + versão): de outro dia ou de outra versão, é refeita.
+const carimboDemo = () => `${hoje()}|${__APP_VERSION__}|${VERSAO_DEMO}`
+let carimboDaDemo = ''
+const registro = (m: Modo, e: Estado): unknown => (m === 'demo' ? { carimbo: carimboDaDemo, estado: e } : e)
 
 export async function iniciar() {
   try {
@@ -89,10 +108,12 @@ export async function iniciar() {
     }
   }
   await carregarGaveta(modo.value)
-  try {
-    temDadosReais.value = Boolean(await get(CHAVE.real, db))
-  } catch {
-    /* sem importância */
+  if (modo.value === 'demo') {
+    try {
+      temDadosReais.value = Boolean(await comPrazo(get(CHAVE.real, db)))
+    } catch {
+      /* sem importância */
+    }
   }
   carregado.value = true
   pedirPersistencia(false)
@@ -101,29 +122,55 @@ export async function iniciar() {
 async function carregarGaveta(m: Modo) {
   leituraFalhou.value = false
   dadosComDefeito.value = null
+  dadosConsertados.value = null
   let salvo: unknown
   try {
-    salvo = await get(CHAVE[m], db)
-  } catch {
+    salvo = await comPrazo(get(CHAVE[m], db))
+  } catch (err) {
     leituraFalhou.value = true
-    erroArmazenamento.value = 'Não consegui abrir a memória do celular. Para não estragar nada, o app não vai salvar até você tentar de novo.'
-    estado.value = estadoInicial()
-    return
-  }
-  if (salvo === undefined) {
+    erroArmazenamento.value = err instanceof PrazoEsgotado
+      ? 'A memória do celular demorou demais para abrir. Para não estragar nada, o app não vai salvar até você tentar de novo.'
+      : 'Não consegui abrir a memória do celular. Para não estragar nada, o app não vai salvar até você tentar de novo.'
     estado.value = m === 'demo' ? novoDemo() : estadoInicial()
     return
   }
-  const ok = conferir(salvo)
-  if (ok) {
-    estado.value = ok
-    erroArmazenamento.value = null
-  } else {
-    leituraFalhou.value = true
-    dadosComDefeito.value = salvo
-    erroArmazenamento.value = 'Os dados guardados parecem com defeito. Nada foi apagado. Baixe os dados como estão e peça ajuda à equipe.'
-    estado.value = estadoInicial()
+  erroArmazenamento.value = null
+  if (m === 'demo') {
+    // dados fictícios: se a gaveta é de outro dia, de outra versão ou está com defeito, é só montar de novo
+    const g = salvo as { carimbo?: unknown; estado?: unknown } | undefined
+    const r = g?.carimbo === carimboDemo() ? conferirEstado(g.estado, true) : null
+    if (r?.ok) carimboDaDemo = carimboDemo()
+    estado.value = r?.ok ? r.estado : novoDemo()
+    return
   }
+  temDadosReais.value = salvo !== undefined
+  if (salvo === undefined) {
+    estado.value = estadoInicial()
+    return
+  }
+  // nos próprios dados, um detalhe com defeito não pode travar tudo: conserta campo a campo
+  const r = conferirEstado(salvo, true)
+  if (r.ok && r.descartados + r.consertados + r.cortados > 0) {
+    try {
+      // antes de qualquer gravação por cima, guarda à parte como estava
+      await comPrazo(set(CHAVE_COMO_ESTAVA, salvo, db))
+    } catch {
+      return falhaDeConferencia(salvo)
+    }
+    if (r.descartados + r.consertados > 0) {
+      dadosComDefeito.value = salvo
+      dadosConsertados.value = { separadas: r.descartados, ajustes: r.consertados }
+    }
+  }
+  if (!r.ok) return falhaDeConferencia(salvo)
+  estado.value = r.estado
+}
+
+function falhaDeConferencia(salvo: unknown) {
+  leituraFalhou.value = true
+  dadosComDefeito.value = salvo
+  erroArmazenamento.value = 'Os dados guardados parecem com defeito. Nada foi apagado. Baixe os dados como estão e peça ajuda à equipe.'
+  estado.value = estadoInicial()
 }
 
 export function tentarDeNovo() {
@@ -132,6 +179,7 @@ export function tentarDeNovo() {
 
 function novoDemo(): Estado {
   const d = hoje()
+  carimboDaDemo = carimboDemo()
   return estadoDemo(mesDe(d), Number(d.slice(8, 10)))
 }
 
@@ -153,20 +201,27 @@ async function pedirPersistencia(pedir: boolean) {
 let pendente: { m: Modo; e: Estado } | null = null
 let agendado = false
 let ignorarProximo = false
+/** A última gravação deu erro: o que está na tela ainda não está guardado. */
+let gravacaoFalhou = false
 
-function gravar() {
+function gravar(): Promise<boolean> {
   agendado = false
-  if (!pendente || leituraFalhou.peek()) return
+  if (!pendente || leituraFalhou.peek()) return Promise.resolve(true)
   const { m, e } = pendente
   pendente = null
-  set(CHAVE[m], e, db)
-    .then(() => {
+  return set(CHAVE[m], registro(m, e), db).then(
+    () => {
+      gravacaoFalhou = false
       if (m === 'real') temDadosReais.value = true
       if (!leituraFalhou.peek()) erroArmazenamento.value = null
-    })
-    .catch(() => {
+      return true
+    },
+    () => {
+      gravacaoFalhou = true
       erroArmazenamento.value = 'Não consegui salvar no celular. Faça uma cópia de segurança agora para não perder nada.'
-    })
+      return false
+    },
+  )
 }
 
 effect(() => {
@@ -202,27 +257,53 @@ export function novoId(): string {
 
 // ---------- ações ----------
 
-export function adicionarLancamento(l: Omit<Lancamento, 'id' | 'criadoEm'>): Lancamento {
-  if (armazenamentoPersistente.value !== true && modo.value === 'real') pedirPersistencia(true)
+/** Corta os textos nos mesmos limites da conferência: o que se grava sempre volta sem defeito. */
+function limitarTextos<T extends Partial<Lancamento>>(l: T): T {
+  return {
+    ...l,
+    ...(typeof l.descricao === 'string' ? { descricao: cortarTexto(l.descricao, LIMITES.descricao) } : {}),
+    ...(typeof l.cliente === 'string' ? { cliente: cortarTexto(l.cliente, LIMITES.cliente) } : {}),
+  }
+}
+
+/** Anota. Devolve null quando não há o que anotar (valor zerado, ou resgate com a reserva vazia). */
+export function adicionarLancamento(l: Omit<Lancamento, 'id' | 'criadoEm'>): Lancamento | null {
   // não dá para tirar da reserva mais do que tem (a tela já avisa; aqui é a última proteção)
   const valor = l.tipo === 'resgate' ? Math.min(l.valor, Math.max(0, saldoReserva(estado.value.lancamentos))) : l.valor
-  const novo: Lancamento = { ...l, valor, id: novoId(), criadoEm: Date.now() }
+  if (!(valor > 0)) return null
+  if (armazenamentoPersistente.value !== true && modo.value === 'real') pedirPersistencia(true)
+  const novo: Lancamento = limitarTextos({ ...l, valor, id: novoId(), criadoEm: Date.now() })
   mudar((e) => ({ ...e, lancamentos: [...e.lancamentos, novo] }))
   return novo
 }
 
-export function atualizarLancamento(id: string, patch: Partial<Lancamento>) {
-  mudar((e) => ({ ...e, lancamentos: e.lancamentos.map((l) => (l.id === id ? { ...l, ...patch } : l)) }))
+/** Muda uma anotação. Devolve false (e não muda nada) se a reserva ficaria negativa. */
+export function atualizarLancamento(id: string, patch: Partial<Lancamento>): boolean {
+  const antes = estado.value.lancamentos
+  const depois = antes.map((l) => (l.id === id ? limitarTextos({ ...l, ...patch }) : l))
+  if (reservaFicaNegativa(antes, depois)) return false
+  mudar((e) => ({ ...e, lancamentos: depois }))
+  return true
 }
 
+/** Apaga. Devolve undefined (e não apaga) se não existe ou se a reserva ficaria negativa. */
 export function removerLancamento(id: string): Lancamento | undefined {
-  const l = estado.value.lancamentos.find((x) => x.id === id)
-  mudar((e) => ({ ...e, lancamentos: e.lancamentos.filter((x) => x.id !== id) }))
+  const antes = estado.value.lancamentos
+  const l = antes.find((x) => x.id === id)
+  if (!l) return undefined
+  const depois = antes.filter((x) => x.id !== id)
+  if (reservaFicaNegativa(antes, depois)) return undefined
+  mudar((e) => ({ ...e, lancamentos: depois }))
   return l
 }
 
-export function restaurarLancamento(l: Lancamento) {
-  mudar((e) => ({ ...e, lancamentos: e.lancamentos.some((x) => x.id === l.id) ? e.lancamentos : [...e.lancamentos, l] }))
+export function restaurarLancamento(l: Lancamento): boolean {
+  const antes = estado.value.lancamentos
+  if (antes.some((x) => x.id === l.id)) return true
+  const depois = [...antes, l]
+  if (reservaFicaNegativa(antes, depois)) return false
+  mudar((e) => ({ ...e, lancamentos: depois }))
+  return true
 }
 
 export function marcarRecebido(id: string, data: string = hoje()) {
@@ -260,13 +341,20 @@ export function alternarDAS(competencia: string) {
 
 export async function trocarModo(m: Modo) {
   if (m === modo.value) return
-  if (leituraFalhou.value) return // não grava nada por cima enquanto a memória está com problema
-  gravarJa()
-  try {
-    await set(CHAVE[modo.value], estado.value, db)
-  } catch {
-    erroArmazenamento.value = 'Não consegui salvar antes de trocar. Tente de novo.'
-    return
+  const saindoDaDemo = modo.value === 'demo'
+  // com a memória com problema, nada é gravado; só dá para sair da demonstração (ler a gaveta real não estraga nada)
+  if (leituraFalhou.value && !saindoDaDemo) return
+  // grava antes de trocar só se há algo novo: só abrir a demonstração não cria a gaveta dos dados reais
+  if (!leituraFalhou.value && (pendente || gravacaoFalhou)) {
+    pendente = null
+    try {
+      await set(CHAVE[modo.value], registro(modo.value, estado.value), db)
+      gravacaoFalhou = false
+      if (modo.value === 'real') temDadosReais.value = true
+    } catch {
+      erroArmazenamento.value = 'Não consegui salvar antes de trocar. Tente de novo.'
+      return
+    }
   }
   carregado.value = false
   modo.value = m
@@ -283,15 +371,21 @@ export function recomecarDemo() {
   if (modo.value === 'demo') estado.value = novoDemo()
 }
 
-export async function apagarTudoReal() {
+/** Apaga os dados reais. Bloqueado enquanto a leitura falhou: o app nem sabe o que está guardado. */
+export async function apagarTudoReal(): Promise<boolean> {
+  if (leituraFalhou.value) return false
   pendente = null
   await del(CHAVE.real, db)
+  await del(CHAVE_COMO_ESTAVA, db)
   temDadosReais.value = false
+  dadosComDefeito.value = null
+  dadosConsertados.value = null
   if (modo.value === 'real') {
     // volta ao começo sem gravar um estado vazio por cima (nada fica guardado)
     ignorarProximo = true
     estado.value = estadoInicial()
   }
+  return true
 }
 
 export function importarBackup(texto: string): string | null {

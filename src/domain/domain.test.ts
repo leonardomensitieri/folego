@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { brl, brlCurto, parseValor } from './money'
-import { somarMeses, diasEntre, hoje } from './dates'
+import { dataValida, diasEntre, hoje, mesValido, somarMeses } from './dates'
 import {
-  custoIndicacao, custoMensal, diasDeFolego, faturamentoAno, fiadosAbertos, margemServico, primeiroMesDeUso, receitaBrutaMes,
-  resumoDoMes, saldoReserva, simular, situacaoDAS, taxaDaForma, vencimentoDAS,
+  acharFiado, competenciaDAS, custoIndicacao, custoMensal, diasDeFolego, faturamentoAno, feriadosNacionais, fiadosAbertos, margemServico,
+  primeiroMesDeUso, receitaBrutaMes, reservaFicaNegativa, resumoDoMes, saldoReserva, simular, situacaoDAS, taxaDaForma, vencimentoDAS,
 } from './calc'
 import { interpretar } from './parser'
-import { gerarBackup, lerBackup, paraCSV } from './backup'
+import { conferirEstado, gerarBackup, lerBackup, LIMITES, paraCSV } from './backup'
 import { CATEGORIAS_GASTO, SERVICOS_PADRAO, estadoInicial } from './defaults'
 import { estadoDemo } from './demo'
 import type { Lancamento } from './types'
@@ -168,8 +168,12 @@ describe('MEI', () => {
     const c = { ...estadoInicial().config, dasPagos: ['2026-09'] }
     expect(situacaoDAS(c, '2026-09', '2026-11-03')).toBe('pago')
     expect(situacaoDAS(c, '2026-10', '2026-11-03')).toBe('a-vencer')
-    expect(situacaoDAS(c, '2026-10', '2026-11-17')).toBe('vence-logo')
-    expect(situacaoDAS(c, '2026-10', '2026-11-21')).toBe('atrasado')
+    expect(situacaoDAS(c, '2026-10', '2026-11-17')).toBe('a-vencer') // 6 dias antes do dia 23
+    expect(situacaoDAS(c, '2026-10', '2026-11-18')).toBe('vence-logo')
+    // 20/11/2026 é sexta e feriado (Consciência Negra): vence na segunda 23/11
+    expect(situacaoDAS(c, '2026-10', '2026-11-21')).toBe('vence-logo')
+    expect(situacaoDAS(c, '2026-10', '2026-11-23')).toBe('vence-logo')
+    expect(situacaoDAS(c, '2026-10', '2026-11-24')).toBe('atrasado')
   })
 })
 
@@ -271,5 +275,152 @@ describe('demonstração', () => {
   it('no começo do mês o mês atual não fica negativo por causa do salário', () => {
     const r = resumoDoMes(estadoDemo('2026-11', 3).lancamentos, '2026-11')
     expect(r.praCasa).toBe(0)
+  })
+})
+
+describe('DAS: feriados e competência (crítico 2)', () => {
+  const c = { ...estadoInicial().config, ehMei: true }
+  it('feriados nacionais fixos e os que dependem da Páscoa', () => {
+    const f = feriadosNacionais(2026)
+    for (const d of ['2026-01-01', '2026-04-21', '2026-05-01', '2026-09-07', '2026-10-12', '2026-11-02', '2026-11-15', '2026-11-20', '2026-12-25']) expect(f.has(d), d).toBe(true)
+    // Páscoa 2026 = 05/04: Carnaval 16 e 17/02, Sexta-feira Santa 03/04, Corpus Christi 04/06
+    for (const d of ['2026-02-16', '2026-02-17', '2026-04-03', '2026-06-04']) expect(f.has(d), d).toBe(true)
+    expect(f.has('2026-02-18')).toBe(false) // quarta de cinzas tem expediente
+    expect(feriadosNacionais(2023).has('2023-11-20')).toBe(false) // feriado nacional só a partir de 2024
+  })
+  it('vencimento pula fim de semana e feriado (próximo dia útil)', () => {
+    expect(vencimentoDAS('2026-10')).toBe('2026-11-23') // 20/11 sexta, feriado
+    expect(vencimentoDAS('2023-01')).toBe('2023-02-22') // 20 e 21/02/2023: Carnaval
+    expect(vencimentoDAS('2019-05')).toBe('2019-06-21') // 20/06/2019: Corpus Christi
+    expect(vencimentoDAS('2025-03')).toBe('2025-04-22') // 20/04 domingo, 21/04 Tiradentes
+    expect(vencimentoDAS('2027-01')).toBe('2027-02-22') // 20/02/2027 sábado
+  })
+  it('gasto DAS vale para a competência escolhida; sem escolha, o mês anterior à data', () => {
+    const atrasado = [L({ tipo: 'saida', categoria: 'das', valor: 8605, data: '2026-12-05', competencia: '2026-10' })]
+    expect(situacaoDAS(c, '2026-10', '2026-12-05', atrasado)).toBe('pago')
+    expect(situacaoDAS(c, '2026-11', '2026-12-05', atrasado)).toBe('a-vencer')
+    const semEscolha = [L({ tipo: 'saida', categoria: 'das', valor: 8605, data: '2026-12-05' })]
+    expect(situacaoDAS(c, '2026-11', '2026-12-05', semEscolha)).toBe('pago')
+    expect(competenciaDAS(semEscolha[0])).toBe('2026-11')
+  })
+})
+
+describe('backup: conferência mais rígida no que é estrutura, gentil no texto', () => {
+  const base = () => gerarBackup(estadoDemo('2026-11', 3))
+  it('recusa data impossível e serviço repetido', () => {
+    const b1 = base(); b1.estado.lancamentos[0].data = '2026-02-31'
+    expect(lerBackup(JSON.stringify(b1)).ok).toBe(false)
+    const b2 = base(); b2.estado.servicos[1].id = b2.estado.servicos[0].id
+    expect(lerBackup(JSON.stringify(b2)).ok).toBe(false)
+    const b3 = base(); b3.estado.lancamentos[0].recebidoEm = '2026-04-31'
+    expect(lerBackup(JSON.stringify(b3)).ok).toBe(false)
+  })
+  it('texto comprido é cortado, não recusa a cópia', () => {
+    const b = base()
+    b.estado.lancamentos[0].descricao = 'x'.repeat(900)
+    b.estado.lancamentos[1].cliente = 'A'.repeat(61)
+    const r = lerBackup(JSON.stringify(b))
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.estado.lancamentos[0].descricao).toHaveLength(LIMITES.descricao)
+      expect(r.estado.lancamentos[1].cliente).toHaveLength(LIMITES.cliente)
+    }
+  })
+  it('competência do DAS vai e volta, e é conferida', () => {
+    const b = base()
+    b.estado.lancamentos[0] = { ...b.estado.lancamentos[0], tipo: 'saida', categoria: 'das', competencia: '2026-09' }
+    const r = lerBackup(JSON.stringify(b))
+    expect(r.ok && r.estado.lancamentos[0].competencia).toBe('2026-09')
+    b.estado.lancamentos[0].competencia = '2026-13'
+    expect(lerBackup(JSON.stringify(b)).ok).toBe(false)
+  })
+  it('nos próprios dados: separa só a anotação estragada e conserta o resto', () => {
+    const e = estadoDemo('2026-11', 3) as unknown as Record<string, any>
+    const total = e.lancamentos.length
+    e.lancamentos[0].valor = -5
+    e.lancamentos[1].data = '2026-02-31'
+    e.lancamentos[2].descricao = 'y'.repeat(800)
+    e.config.dasPagos = null
+    const r = conferirEstado(e, true)
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.estado.lancamentos).toHaveLength(total - 2)
+      expect(r.descartados).toBe(2)
+      expect(r.cortados).toBe(1)
+      expect(r.consertados).toBe(1)
+      expect(r.estado.config.dasPagos).toEqual([])
+    }
+    // estrutura quebrada continua sendo recusada
+    expect(conferirEstado({ lancamentos: 'x' }, true).ok).toBe(false)
+    expect(conferirEstado(null, true).ok).toBe(false)
+  })
+  it('planilha: texto que começa com "-" também leva apóstrofo', () => {
+    const e = estadoInicial()
+    e.lancamentos = [L({ tipo: 'saida', categoria: 'outros', descricao: '-1+1+cmd|calc' })]
+    expect(paraCSV(e)).toContain("'-1+1")
+  })
+  it('planilha mostra a competência do DAS', () => {
+    const e = estadoInicial()
+    e.lancamentos = [L({ tipo: 'saida', categoria: 'das', valor: 8605, data: '2026-12-05', competencia: '2026-10' })]
+    expect(paraCSV(e)).toContain('DAS do MEI (outubro de 2026)')
+  })
+})
+
+describe('reserva nunca negativa', () => {
+  it('apagar ou diminuir um "Guardei" já usado é bloqueado', () => {
+    const g = L({ id: 'g', tipo: 'reserva', categoria: 'reserva', valor: 10000 })
+    const r = L({ id: 'r', tipo: 'resgate', categoria: 'resgate', valor: 8000 })
+    expect(reservaFicaNegativa([g, r], [r])).toBe(true)
+    expect(reservaFicaNegativa([g, r], [{ ...g, valor: 2000 }, r])).toBe(true)
+    expect(reservaFicaNegativa([g, r], [{ ...g, valor: 9000 }, r])).toBe(false)
+    // apagar o resgate é sempre possível
+    expect(reservaFicaNegativa([g, r], [g])).toBe(false)
+    // dado antigo já negativo: dá para consertar aos poucos
+    expect(reservaFicaNegativa([r], [{ ...r, valor: 5000 }])).toBe(false)
+  })
+})
+
+describe('fiado: achar pelo nome sem diferença de acento', () => {
+  const abertos = [
+    L({ id: 'i', recebido: false, cliente: 'Inês' }),
+    L({ id: 'a', recebido: false, cliente: 'Cliente A' }),
+    L({ id: 'b', recebido: false, cliente: 'Cliente B' }),
+  ]
+  it('acha Inês escrevendo "ines"', () => {
+    expect(acharFiado(abertos, 'recebi o fiado da ines', 'Ines')?.id).toBe('i')
+  })
+  it('acha os nomes da demonstração ("Cliente A")', () => {
+    expect(acharFiado(abertos, 'recebi o fiado da cliente a', undefined)?.id).toBe('a')
+    expect(acharFiado(abertos, 'a Cliente B pagou o fiado', undefined)?.id).toBe('b')
+    expect(acharFiado(abertos, 'recebi o fiado da Maria', 'Maria')).toBeUndefined()
+  })
+})
+
+describe('demonstração em qualquer dia', () => {
+  it('cotação de fornecedor nunca fica no futuro (dia 1)', () => {
+    const e = estadoDemo('2026-11', 1)
+    expect(e.fornecedores.every((f) => f.data <= '2026-11-01')).toBe(true)
+  })
+  it('nenhum dia do mês tem DAS atrasado, nem mesmo com o feriado de 20/11', () => {
+    for (let d = 1; d <= 30; d++) {
+      const hj = `2026-11-${String(d).padStart(2, '0')}`
+      const e = estadoDemo('2026-11', d)
+      expect(situacaoDAS(e.config, '2026-10', hj, e.lancamentos), hj).not.toBe('atrasado')
+    }
+  })
+})
+
+describe('mês no endereço', () => {
+  it('reconhece mês inválido', () => {
+    expect(mesValido('2026-11')).toBe(true)
+    expect(mesValido('2026-13')).toBe(false)
+    expect(mesValido('2026-00')).toBe(false)
+    expect(mesValido('abc')).toBe(false)
+  })
+  it('reconhece data impossível', () => {
+    expect(dataValida('2026-02-28')).toBe(true)
+    expect(dataValida('2028-02-29')).toBe(true)
+    expect(dataValida('2026-02-29')).toBe(false)
+    expect(dataValida('2026-02-31')).toBe(false)
   })
 })

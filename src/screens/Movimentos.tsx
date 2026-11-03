@@ -1,9 +1,9 @@
-import { resumoDoMes } from '../domain/calc'
-import { dataCurta, diaDaSemana, mesDe, nomeMesCurto, somarMeses, tituloMes } from '../domain/dates'
+import { competenciaDAS, resumoDoMes } from '../domain/calc'
+import { dataCurta, diaDaSemana, mesDe, mesValido, nomeMesCurto, somarMeses, tituloMes } from '../domain/dates'
 import type { Lancamento } from '../domain/types'
 import { estado, mesAtual } from '../state/store'
 import { IcSeta, IcVoltar } from '../ui/icons'
-import { Cartao, Dinheiro, Vazio } from '../ui/kit'
+import { Cartao, Dinheiro, Pagina, Vazio } from '../ui/kit'
 import { ir } from '../ui/router'
 import { nomeCategoria, nomeForma, sinalNoCaixa } from '../ui/nomes'
 import { IconeCategoria } from '../ui/iconeCategoria'
@@ -19,6 +19,7 @@ export function ListaLancamentos({ lancamentos, semData }: { lancamentos: Lancam
           !semData && dataCurta(l.data),
           l.recebidoEm && l.recebidoEm !== l.data && `atendimento de ${dataCurta(l.data)}`,
           l.tipo === 'entrada' && (l.recebido ? nomeForma(l.forma) : 'fiado'),
+          l.tipo === 'saida' && l.categoria === 'das' && `de ${nomeMesCurto(competenciaDAS(l))}`,
           l.cliente,
           l.descricao && l.descricao !== nomeCategoria(e, l) ? l.descricao : '',
         ].filter(Boolean).join(' · ')
@@ -31,8 +32,9 @@ export function ListaLancamentos({ lancamentos, semData }: { lancamentos: Lancam
                 {sub && <span class="linha-sub">{sub}</span>}
               </span>
               <span class={`linha-direita valor-${!l.recebido ? 'fiado' : s > 0 ? 'mais' : s < 0 ? 'menos' : 'neutro'}`}>
-                <Dinheiro v={s < 0 ? -l.valor : l.valor} sinal={s !== 0} />
-                {!l.recebido ? <small>fiado</small> : l.taxa > 0 && <small>taxa {brl(l.taxa)}</small>}
+                {/* fiado ainda não entrou no caixa: sem o "+", e com "a receber" embaixo */}
+                <Dinheiro v={s < 0 ? -l.valor : l.valor} sinal={s !== 0 && l.recebido} />
+                {!l.recebido ? <small>a receber</small> : l.taxa > 0 && <small>taxa {brl(l.taxa)}</small>}
               </span>
             </button>
           </li>
@@ -44,7 +46,15 @@ export function ListaLancamentos({ lancamentos, semData }: { lancamentos: Lancam
 
 export function Movimentos({ mes: mesParam }: { mes?: string }) {
   const e = estado.value
-  const mes = mesParam && /^\d{4}-\d{2}$/.test(mesParam) ? mesParam : mesAtual.value
+  if (mesParam && !mesValido(mesParam)) {
+    return (
+      <Pagina titulo="Mês não encontrado" voltarPara="">
+        <p class="intro">Esse endereço não é de um mês que existe.</p>
+        <button class="btn btn-primario btn-largo" onClick={() => ir(`movimentos/${mesAtual.value}`, { substituir: true })}>Ver o mês de agora</button>
+      </Pagina>
+    )
+  }
+  const mes = mesParam ?? mesAtual.value
   const r = resumoDoMes(e.lancamentos, mes)
   // Cada anotação aparece no dia em que o dinheiro entrou de verdade (fiado pago aparece no dia do pagamento),
   // e o fiado ainda aberto aparece no dia do atendimento. Assim a lista bate com os totais do mês.
@@ -72,7 +82,9 @@ export function Movimentos({ mes: mesParam }: { mes?: string }) {
           </dl>
           <p class="cartao-sub">
             {r.atendimentos} {r.atendimentos === 1 ? 'atendimento' : 'atendimentos'} · a maquininha ficou com {brl(r.taxas)}
-            {r.guardado > 0 && <> · do que sobrou, <Dinheiro v={r.guardado} curto /> foi para a reserva</>}
+            {r.guardado > 0 && (r.sobrou >= 0
+              ? <> · do que sobrou, <Dinheiro v={r.guardado} curto /> foi para a reserva</>
+              : <> · mesmo assim, <Dinheiro v={r.guardado} curto /> foi para a reserva</>)}
           </p>
         </Cartao>
 

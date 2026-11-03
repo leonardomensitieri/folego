@@ -1,5 +1,6 @@
 import { diasEntre, mesDe, somarMeses } from './dates'
 import { MEI } from './defaults'
+import { semAcento } from './texto'
 import type { Centavos, Config, Estado, Forma, Lancamento, Servico, Taxas } from './types'
 
 export function taxaDaForma(valor: Centavos, forma: Forma | undefined, taxas: Taxas): Centavos {
@@ -102,13 +103,40 @@ export function saldoReserva(lancs: Lancamento[]): Centavos {
   return s
 }
 
+/**
+ * Apagar ou mudar uma anotação não pode deixar a reserva negativa (o dinheiro já foi tirado).
+ * Se ela já estava negativa (dado antigo), deixa consertar aos poucos.
+ */
+export function reservaFicaNegativa(antes: Lancamento[], depois: Lancamento[]): boolean {
+  const s = saldoReserva(depois)
+  return s < 0 && s < saldoReserva(antes)
+}
+
 export function fiadosAbertos(lancs: Lancamento[]): Lancamento[] {
   return lancs.filter((l) => l.tipo === 'entrada' && !l.recebido).sort((a, b) => a.data.localeCompare(b.data))
 }
 
 /**
+ * "recebi o fiado da ines": acha o fiado aberto pelo nome, sem ligar para acento ("Inês").
+ * Se o nome lido não bater, procura o nome inteiro de quem deve dentro da frase ("Cliente A" da demonstração).
+ */
+export function acharFiado(abertos: Lancamento[], frase: string, nomeLido?: string): Lancamento | undefined {
+  const norm = (s: string) => semAcento(s).replace(/[^a-z0-9]+/g, ' ').trim()
+  if (nomeLido) {
+    const alvo = norm(nomeLido)
+    const certo = abertos.find((l) => l.cliente && norm(l.cliente) === alvo)
+    if (certo) return certo
+  }
+  const texto = ` ${norm(frase)} `
+  return abertos
+    .filter((l) => l.cliente && norm(l.cliente).length >= 2 && texto.includes(` ${norm(l.cliente)} `))
+    .sort((a, b) => norm(b.cliente!).length - norm(a.cliente!).length)[0]
+}
+
+/**
  * Quanto custa manter o salão + a casa por mês, para medir o fôlego.
- * Usa a média dos últimos 3 meses fechados que tiveram gastos; sem histórico, usa a estimativa da configuração.
+ * Usa o MAIOR entre a estimativa dos Ajustes e a média dos últimos 3 meses fechados que tiveram gastos
+ * (conservador: melhor prometer fôlego a menos do que a mais). Sem histórico, usa a estimativa.
  */
 export function custoMensal(estado: Estado, mesAtual: string): Centavos {
   const meses = [1, 2, 3].map((n) => somarMeses(mesAtual, -n))
@@ -221,14 +249,18 @@ export function receitaBrutaMes(lancs: Lancamento[], mes: string): Centavos {
 
 export type SituacaoDAS = 'pago' | 'a-vencer' | 'vence-logo' | 'atrasado'
 
+/** De qual mês é um gasto "DAS do MEI": o que ela escolheu, ou o mês anterior à data (o normal é pagar no mês seguinte). */
+export function competenciaDAS(l: Pick<Lancamento, 'data' | 'competencia'>): string {
+  return l.competencia ?? somarMeses(mesDe(l.data), -1)
+}
+
 /**
- * O DAS da competência M vence no dia 20 do mês M+1. Conta como pago se foi marcado, ou se ela anotou
- * um gasto "DAS do MEI" no mês do vencimento.
+ * O DAS da competência M vence no dia 20 do mês M+1 (ou no próximo dia útil). Conta como pago se foi marcado,
+ * ou se ela anotou um gasto "DAS do MEI" daquela competência.
  */
 export function situacaoDAS(config: Config, competencia: string, dataHoje: string, lancs: Lancamento[] = []): SituacaoDAS {
   if (config.dasPagos.includes(competencia)) return 'pago'
-  const mesVenc = somarMeses(competencia, 1)
-  if (lancs.some((l) => l.tipo === 'saida' && l.categoria === 'das' && mesDe(l.data) === mesVenc)) return 'pago'
+  if (lancs.some((l) => l.tipo === 'saida' && l.categoria === 'das' && competenciaDAS(l) === competencia)) return 'pago'
   const vencimento = vencimentoDAS(competencia)
   const faltam = diasEntre(dataHoje, vencimento)
   if (faltam < 0) return 'atrasado'
@@ -236,15 +268,43 @@ export function situacaoDAS(config: Config, competencia: string, dataHoje: strin
   return 'a-vencer'
 }
 
-/** Dia 20 do mês seguinte; se cair em sábado ou domingo, passa para a segunda-feira (dia útil seguinte). */
+const DIA_MS = 86_400_000
+const iso = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
+
+/** Domingo de Páscoa (algoritmo de Meeus/Jones/Butcher, calendário gregoriano), em UTC. */
+function pascoa(ano: number): Date {
+  const a = ano % 19, b = Math.floor(ano / 100), c = ano % 100
+  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3)
+  const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4
+  const l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451)
+  const n = h + l - 7 * m + 114
+  return new Date(Date.UTC(ano, Math.floor(n / 31) - 1, (n % 31) + 1))
+}
+
+const feriadosCache = new Map<number, Set<string>>()
+
+/**
+ * Dias sem expediente bancário no país: feriados nacionais fixos (20/11 desde 2024, Lei 14.759/2023),
+ * Carnaval (segunda e terça), Sexta-feira Santa e Corpus Christi. Feriado municipal fica de fora:
+ * no pior caso o aviso chega um dia antes, nunca um "atrasado" falso por causa dos nacionais.
+ */
+export function feriadosNacionais(ano: number): Set<string> {
+  const pronto = feriadosCache.get(ano)
+  if (pronto) return pronto
+  const fixos = ['01-01', '04-21', '05-01', '09-07', '10-12', '11-02', '11-15', '12-25', ...(ano >= 2024 ? ['11-20'] : [])]
+  const p = pascoa(ano).getTime()
+  const moveis = [-48, -47, -2, 60].map((n) => iso(new Date(p + n * DIA_MS)))
+  const dias = new Set([...fixos.map((d) => `${ano}-${d}`), ...moveis])
+  feriadosCache.set(ano, dias)
+  return dias
+}
+
+/** Dia 20 do mês seguinte; se cair em fim de semana ou feriado, passa para o próximo dia útil. */
 export function vencimentoDAS(competencia: string): string {
-  const mes = somarMeses(competencia, 1)
-  const [y, m] = mes.split('-').map(Number)
-  const d = new Date(y, m - 1, MEI.diaVencimentoDAS)
-  const semana = d.getDay()
-  if (semana === 6) d.setDate(d.getDate() + 2)
-  if (semana === 0) d.setDate(d.getDate() + 1)
-  return `${mes}-${String(d.getDate()).padStart(2, '0')}`
+  const [y, m] = somarMeses(competencia, 1).split('-').map(Number)
+  const d = new Date(Date.UTC(y, m - 1, MEI.diaVencimentoDAS))
+  while (d.getUTCDay() === 0 || d.getUTCDay() === 6 || feriadosNacionais(d.getUTCFullYear()).has(iso(d))) d.setUTCDate(d.getUTCDate() + 1)
+  return iso(d)
 }
 
 /** Primeiro mês (AAAA-MM) com alguma anotação; antes disso o app não sabe nada sobre o DAS. */

@@ -7,6 +7,20 @@ export function hoje(agora: Date = new Date()): string {
   return `${y}-${m}-${d}`
 }
 
+/** "2026-11" válido (mês de 01 a 12). */
+export function mesValido(mes: string): boolean {
+  return /^\d{4}-(0[1-9]|1[0-2])$/.test(mes)
+}
+
+/** "2026-02-31" não existe: confere se o dia cabe no mês. */
+export function dataValida(data: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(data)
+  if (!m) return false
+  const [y, mm, d] = [Number(m[1]), Number(m[2]), Number(m[3])]
+  const t = new Date(Date.UTC(y, mm - 1, d))
+  return t.getUTCFullYear() === y && t.getUTCMonth() === mm - 1 && t.getUTCDate() === d
+}
+
 export function mesDe(data: string): string {
   return data.slice(0, 7)
 }

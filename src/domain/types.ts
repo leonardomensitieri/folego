@@ -31,6 +31,8 @@ export interface Lancamento {
   /** false = "fiado": a cliente ainda vai pagar. */
   recebido: boolean
   recebidoEm?: string
+  /** Só no gasto "DAS do MEI": de qual mês (AAAA-MM) é o boleto. Sem isso, vale o mês anterior à data. */
+  competencia?: string
 }
 
 export interface Servico {

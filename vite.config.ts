@@ -14,8 +14,8 @@ export default defineConfig({
   plugins: [
     preact(),
     VitePWA({
-      // atualiza sozinho: não há dado no servidor, então a versão nova pode entrar sem perguntar
-      registerType: 'autoUpdate',
+      // pergunta antes de atualizar: recarregar sozinho podia interromper uma anotação no meio (aviso "Versão nova pronta")
+      registerType: 'prompt',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'Fôlego — caixa do salão',

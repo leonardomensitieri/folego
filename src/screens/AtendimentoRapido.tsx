@@ -5,6 +5,7 @@ import { brl, brlCurto } from '../domain/money'
 import type { Forma, Servico } from '../domain/types'
 import { adicionarLancamento, estado, removerLancamento } from '../state/store'
 import { avisar } from '../ui/kit'
+import { TEXTO_RESERVA_USADA } from '../ui/nomes'
 
 /** Os serviços mais feitos nos últimos 60 dias (ou os primeiros da lista, no começo). */
 function maisUsados(servicos: Servico[], limite = 4): Servico[] {
@@ -51,6 +52,7 @@ export function AtendimentoRapido() {
       cliente: cliente?.trim() || undefined,
       recebido: !fiado,
     })
+    if (!novo) return
     setAberto(null)
     setPedindoNome(false)
     setNome('')
@@ -63,7 +65,7 @@ export function AtendimentoRapido() {
             rotulo: 'Guardar',
             fazer: () => {
               const r = adicionarLancamento({ data: hoje(), tipo: 'reserva', valor: e.config.reservaPorAtendimento, taxa: 0, categoria: 'reserva', recebido: true })
-              avisar('Guardado na reserva.', { rotulo: 'Desfazer', fazer: () => removerLancamento(r.id) })
+              if (r) avisar('Guardado na reserva.', { rotulo: 'Desfazer', fazer: () => { if (!removerLancamento(r.id)) avisar(TEXTO_RESERVA_USADA) } })
             },
           }]
         : desfazer,

@@ -30,3 +30,6 @@ export function sinalNoCaixa(l: Lancamento): 1 | -1 | 0 {
   if (l.tipo === 'saida' || l.tipo === 'retirada') return -1
   return 0
 }
+
+/** Quando apagar ou mudar uma anotação deixaria a reserva negativa (o dinheiro já foi tirado). */
+export const TEXTO_RESERVA_USADA = 'Não dá: esse dinheiro já foi tirado da reserva, e ela ficaria negativa. Se precisar, mude antes o valor de “Tirei da reserva”.'

@@ -3,6 +3,9 @@ import { estadoInicial } from './defaults'
 import { taxaDaForma } from './calc'
 import type { Estado, Forma, Lancamento } from './types'
 
+/** Muda quando o jeito de montar a demonstração muda: a gaveta da demonstração é refeita. */
+export const VERSAO_DEMO = 2
+
 /**
  * Dados 100% FICTÍCIOS para demonstração e testes (exigência do edital: protótipos testados com dados fictícios).
  * Perfil genérico de salão de uma profissional só, inventado; não reproduz dados de nenhuma parceira real.
@@ -60,7 +63,7 @@ export function estadoDemo(mesAtual: string, diaAtual: number): Estado {
     noMes(6, { tipo: 'saida', valor: 32_000, categoria: 'produtos', descricao: 'Compra do mês (fictícia)', recebido: true })
     noMes(10, { tipo: 'saida', valor: 18_000, categoria: 'contas', descricao: 'Luz e internet (fictício)', recebido: true })
     noMes(12, { tipo: 'saida', valor: 4_500, categoria: 'limpeza', recebido: true })
-    noMes(20, { tipo: 'saida', valor: 8_605, categoria: 'das', descricao: 'DAS', recebido: true })
+    noMes(20, { tipo: 'saida', valor: 8_605, categoria: 'das', descricao: 'DAS', recebido: true, competencia: somarMeses(mes, -1) })
     // o "salário" sai no fim do mês, depois de ver quanto sobrou
     noMes(28, { tipo: 'retirada', valor: 150_000, categoria: 'retirada', recebido: true })
   }
@@ -73,10 +76,12 @@ export function estadoDemo(mesAtual: string, diaAtual: number): Estado {
   add(`${somarMeses(mesAtual, -1)}-22`, { tipo: 'entrada', valor: 5_000, categoria: 'corte', recebido: false, cliente: nomesFicticios[1] })
 
   e.lancamentos = lancs
+  // cotação do começo do mês, mas nunca depois de hoje (no dia 1 fica no próprio dia 1)
+  const cotacao = `${mesAtual}-${String(Math.min(2, diaAtual)).padStart(2, '0')}`
   e.fornecedores = [
-    { id: 'f1', produto: 'Descolorante', nome: 'Distribuidora 1', preco: 4_990, data: `${mesAtual}-02` },
-    { id: 'f2', produto: 'Descolorante', nome: 'Loja online 2', preco: 4_350, data: `${mesAtual}-02` },
-    { id: 'f3', produto: 'Máscara', nome: 'Distribuidora 1', preco: 3_890, data: `${mesAtual}-02` },
+    { id: 'f1', produto: 'Descolorante', nome: 'Distribuidora 1', preco: 4_990, data: cotacao },
+    { id: 'f2', produto: 'Descolorante', nome: 'Loja online 2', preco: 4_350, data: cotacao },
+    { id: 'f3', produto: 'Máscara', nome: 'Distribuidora 1', preco: 3_890, data: cotacao },
     { id: 'f4', produto: 'Máscara', nome: 'Atacado 3', preco: 4_200, data: `${somarMeses(mesAtual, -1)}-15` },
   ]
   return e

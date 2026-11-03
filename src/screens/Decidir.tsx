@@ -32,9 +32,11 @@ export function Decidir() {
   const [cena, setCena] = useState<Cena>('concorrente')
   const [desconto, setDesconto] = useState(15)
   const [aumentoProduto, setAumentoProduto] = useState(30)
-  // sugestão: +10% arredondado; volta para a sugestão sempre que o serviço muda
-  const [novoPrecoDigitado, setNovoPreco] = useState<Centavos | null>(null)
-  const novoPreco = novoPrecoDigitado ?? (s ? Math.max(s.preco + 500, Math.round((s.preco * 1.1) / 500) * 500) : null)
+  // sugestão: +10% arredondado; volta para a sugestão sempre que o serviço muda.
+  // undefined = ainda não mexeu (vale a sugestão); null = apagou o campo (não calcula com valor escondido)
+  const [novoPrecoDigitado, setNovoPreco] = useState<Centavos | null | undefined>(undefined)
+  const novoPreco = novoPrecoDigitado === undefined ? (s ? Math.max(s.preco + 500, Math.round((s.preco * 1.1) / 500) * 500) : null) : novoPrecoDigitado
+  const semNovoPreco = cena === 'aumento' && !novoPreco
   const sugerido = s ? atendimentosPorMes(s.id) : 0
   const [qtdManual, setQtdManual] = useState<number | null>(null)
   const qtd = qtdManual ?? (sugerido || 8)
@@ -73,7 +75,7 @@ export function Decidir() {
         <Cartao class="simulador">
           <label class="campo" for="servico-ese">
             <span class="campo-rotulo">Serviço</span>
-            <select id="servico-ese" class="campo-input" value={s.id} onChange={(ev) => { setServicoId((ev.currentTarget as HTMLSelectElement).value); setQtdManual(null); setNovoPreco(null) }}>
+            <select id="servico-ese" class="campo-input" value={s.id} onChange={(ev) => { setServicoId((ev.currentTarget as HTMLSelectElement).value); setQtdManual(null); setNovoPreco(undefined) }}>
               {servicos.map((x) => <option value={x.id}>{x.nome} ({brlCurto(x.preco)})</option>)}
             </select>
           </label>
@@ -82,22 +84,28 @@ export function Decidir() {
           {cena === 'aumento' && <CampoValor id="novo-preco" rotulo="Novo preço" valor={novoPreco} aoMudar={setNovoPreco} />}
           <CampoNumero id="qtd" rotulo={`Quantos por mês? ${sugerido ? `(seu histórico: ${sugerido})` : ''}`} valor={qtd} aoMudar={(v) => setQtdManual(Math.round(v))} max={200} />
 
-          <div class="antes-depois">
-            <div><small>Margem hoje</small><b><Dinheiro v={res.antes.margem} /></b><small>sobra por atendimento</small></div>
-            <div aria-hidden="true" class="seta">→</div>
-            <div><small>Margem depois</small><b class={res.depois.margem < res.antes.margem ? 'valor-menos' : 'valor-mais'}><Dinheiro v={res.depois.margem} /></b><small>sobra por atendimento</small></div>
-          </div>
-          <p class={`veredito ${res.impactoMes < 0 ? 'ruim' : 'bom'}`}>
-            Caixa do mês: <b><Dinheiro v={res.impactoMes} sinal /></b> no “Sobrou no salão”.
-          </p>
-          {res.impactoMes < 0 && (
-            <p class="explica">
-              {res.atendimentosParaEmpatar === null
-                ? 'Com esse valor, o serviço não cobre nem o produto. Nenhuma quantidade de clientes compensa.'
-                : <>Clientela: para sobrar o mesmo dinheiro, você precisaria de <b>{res.atendimentosParaEmpatar} {res.atendimentosParaEmpatar === 1 ? 'atendimento' : 'atendimentos'} a mais</b> por mês ({qtd} → {qtd + res.atendimentosParaEmpatar}).</>}
-            </p>
+          {semNovoPreco ? (
+            <p class="explica">Digite o novo preço para ver a conta.</p>
+          ) : (
+            <>
+              <div class="antes-depois">
+                <div><small>Margem hoje</small><b><Dinheiro v={res.antes.margem} /></b><small>sobra por atendimento</small></div>
+                <div aria-hidden="true" class="seta">→</div>
+                <div><small>Margem depois</small><b class={res.depois.margem < res.antes.margem ? 'valor-menos' : 'valor-mais'}><Dinheiro v={res.depois.margem} /></b><small>sobra por atendimento</small></div>
+              </div>
+              <p class={`veredito ${res.impactoMes < 0 ? 'ruim' : 'bom'}`}>
+                Caixa do mês: <b><Dinheiro v={res.impactoMes} sinal /></b> no “Sobrou no salão”.
+              </p>
+              {res.impactoMes < 0 && (
+                <p class="explica">
+                  {res.atendimentosParaEmpatar === null
+                    ? 'Com esse valor, o serviço não cobre nem o produto. Nenhuma quantidade de clientes compensa.'
+                    : <>Clientela: para sobrar o mesmo dinheiro, você precisaria de <b>{res.atendimentosParaEmpatar} {res.atendimentosParaEmpatar === 1 ? 'atendimento' : 'atendimentos'} a mais</b> por mês ({qtd} → {qtd + res.atendimentosParaEmpatar}).</>}
+                </p>
+              )}
+              <p class="muted pequeno">Margem, Caixa e Clientela são os mesmos indicadores do jogo do Laboratório. É uma conta aproximada com os seus números. Não é consultoria: quem decide é você.</p>
+            </>
           )}
-          <p class="muted pequeno">Margem, Caixa e Clientela são os mesmos indicadores do jogo do Laboratório. É uma conta aproximada com os seus números. Não é consultoria: quem decide é você.</p>
           {cena === 'concorrente' && res.impactoMes < 0 && (
             <Nota>Antes de baixar o preço de tudo, dá para testar uma oferta com prazo, um pacote ou uma condição só para clientes antigas.</Nota>
           )}
@@ -111,7 +119,11 @@ export function Decidir() {
       )}
 
       <h2 class="secao">Quanto sobra em cada serviço</h2>
-      <p class="muted pequeno">Já sem o produto usado e sem a taxa média da maquininha nas suas vendas ({pct(taxaMedia)}; Pix e dinheiro não pagam taxa). <b>Ainda não desconta aluguel, luz e água</b>: isso sai do total do mês.</p>
+      <p class="muted pequeno">
+        Já sem o produto usado e sem a taxa média das suas vendas ({pct(taxaMedia)}). Taxas dos Ajustes: débito {pct(e.config.taxas.debito)},
+        crédito {pct(e.config.taxas.credito)}, Pix {e.config.taxas.pix ? pct(e.config.taxas.pix) : 'sem taxa'}; dinheiro não paga taxa.
+        {' '}<b>Ainda não desconta aluguel, luz e água</b>: isso sai do total do mês.
+      </p>
       <ul class="lista">
         {servicos.map((x) => {
           const m = margemServico(x, taxaMedia)

@@ -1,5 +1,5 @@
 import { Component, type ComponentChildren } from 'preact'
-import { carregado, dadosComDefeito, erroArmazenamento, estado, leituraFalhou, modo, tentarDeNovo, trocarModo } from './state/store'
+import { carregado, dadosComDefeito, dadosConsertados, erroArmazenamento, estado, leituraFalhou, modo, tentarDeNovo, trocarModo } from './state/store'
 import { gerarBackup } from './domain/backup'
 import { IcBalanca, IcCasa, IcLista, IcMais } from './ui/icons'
 import { Toast } from './ui/kit'
@@ -78,6 +78,14 @@ function baixarComoEsta() {
   a.click()
 }
 
+function textoConserto({ separadas, ajustes }: { separadas: number; ajustes: number }) {
+  const partes = [
+    separadas === 1 ? '1 anotação guardada estava com defeito e ficou de fora.' : separadas > 1 ? `${separadas} anotações guardadas estavam com defeito e ficaram de fora.` : '',
+    ajustes > 0 ? 'Algum ajuste estava com defeito e voltou ao normal; confira em Mais → Ajustes.' : '',
+  ]
+  return partes.filter(Boolean).join(' ')
+}
+
 /** Se alguma tela quebrar, mostra saídas em vez de uma tela branca. */
 class Protecao extends Component<{ children: ComponentChildren }, { erro: boolean }> {
   state = { erro: false }
@@ -131,6 +139,15 @@ export function App() {
               {dadosComDefeito.value !== null && <button class="btn btn-pequeno" onClick={baixarComoEsta}>Baixar dados como estão</button>}
             </div>
           )}
+        </div>
+      )}
+      {!erroArmazenamento.value && dadosConsertados.value && (
+        <div class="faixa-erro" role="alert">
+          <p>{textoConserto(dadosConsertados.value)} O resto abriu normalmente. Uma cópia de como estava ficou guardada no celular.</p>
+          <div class="faixa-acoes">
+            <button class="btn btn-pequeno" onClick={baixarComoEsta}>Baixar como estava</button>
+            <button class="btn btn-pequeno" onClick={() => (dadosConsertados.value = null)}>Entendi</button>
+          </div>
         </div>
       )}
       <main id="principal">

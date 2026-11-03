@@ -74,7 +74,7 @@ export function Inicio() {
 
   // Um aviso por vez, o mais importante primeiro (tela simples para quem lê palavra por palavra).
   const avisos: Aviso[] = []
-  if (das === 'atrasado') avisos.push({ chave: 'das', forte: true, icone: <IcAlerta />, titulo: `DAS de ${nomeMesCurto(compDAS)} sem marcar como pago`, texto: 'Venceu dia 20. Se já pagou, toque e marque. Se não, pague no app MEI para manter o INSS em dia.', ir: 'mais/mei', rotulo: 'Abrir MEI em dia' })
+  if (das === 'atrasado') avisos.push({ chave: 'das', forte: true, icone: <IcAlerta />, titulo: `DAS de ${nomeMesCurto(compDAS)} sem marcar como pago`, texto: `Venceu em ${dataCurta(vencimentoDAS(compDAS))}. Se já pagou, toque e marque. Se não, pague no app MEI para manter o INSS em dia.`, ir: 'mais/mei', rotulo: 'Abrir MEI em dia' })
   if (sugerirInstalar) avisos.push({ chave: 'instalar', icone: <IcCelular />, titulo: 'Instale o Fôlego no celular', texto: e.lancamentos.length > 0 ? 'Abre como app e funciona sem internet. No iPhone, faça uma cópia antes: o app instalado começa vazio.' : 'Abre como app e funciona sem internet. Instale antes de começar a anotar.', ir: 'mais/instalar', rotulo: 'Ver como instalar' })
   if (totalFiado > 0) avisos.push({ chave: 'fiado', icone: <IcPessoa />, titulo: <>Fiado para receber: <Dinheiro v={totalFiado} curto /></>, texto: fiados.length === 1 ? '1 cliente vai pagar depois.' : `${fiados.length} clientes vão pagar depois.`, ir: 'mais/fiado', rotulo: 'Ver o fiado' })
   if (das === 'vence-logo') avisos.push({ chave: 'das', icone: <IcRecibo />, titulo: 'DAS vence logo', texto: `Vence em ${dataCurta(vencimentoDAS(compDAS))}. Já pagou? Toque para marcar.`, ir: 'mais/mei', rotulo: 'Abrir MEI em dia' })
@@ -100,7 +100,13 @@ export function Inicio() {
             <span><small>Saiu</small><Dinheiro v={r.saiu} curto /></span>
             <span><small>Pra casa</small><Dinheiro v={r.praCasa} curto /></span>
           </div>
-          {r.guardado > 0 && <p class="destaque-nota">Desse valor, <Dinheiro v={r.guardado} curto /> já foram para a reserva.</p>}
+          {r.guardado > 0 && (
+            <p class="destaque-nota">
+              {r.sobrou >= 0
+                ? <>Desse valor, <Dinheiro v={r.guardado} curto /> já foram para a reserva.</>
+                : <>Mesmo assim, você guardou <Dinheiro v={r.guardado} curto /> na reserva neste mês.</>}
+            </p>
+          )}
         </Cartao>
         <div class="linha-links">
           <button class="link-sutil" onClick={() => setMostrarComo(!mostrarComo)} aria-expanded={mostrarComo}>

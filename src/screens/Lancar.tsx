@@ -1,14 +1,15 @@
 import { useState } from 'preact/hooks'
 import { signal } from '@preact/signals'
-import { recebidoEmAoEditar, saldoReserva, taxaDaForma } from '../domain/calc'
-import { hoje, somarMeses } from '../domain/dates'
+import { competenciaDAS, recebidoEmAoEditar, saldoReserva, taxaDaForma } from '../domain/calc'
+import { hoje, mesDe, nomeMesCurto, somarMeses } from '../domain/dates'
+import { LIMITES } from '../domain/backup'
 import { NOMES_FORMA, SERVICO_AVULSO } from '../domain/defaults'
 import { brl, brlCurto } from '../domain/money'
 import type { Centavos, Forma, Lancamento, Tipo } from '../domain/types'
 import { adicionarLancamento, atualizarLancamento, estado, removerLancamento, restaurarLancamento } from '../state/store'
 import { avisar, CampoTexto, CampoValor, Escolha, Nota, Pagina } from '../ui/kit'
 import { ir, voltar } from '../ui/router'
-import { ROTULO_TIPO } from '../ui/nomes'
+import { ROTULO_TIPO, TEXTO_RESERVA_USADA } from '../ui/nomes'
 import { IconeCategoria } from '../ui/iconeCategoria'
 
 type FormaOuFiado = Forma | 'fiado'
@@ -20,6 +21,10 @@ export interface Rascunho {
   forma?: Forma
   fiado: boolean
   cliente?: string
+  /** Dia entendido na frase ("ontem"). */
+  data?: string
+  /** DAS: de qual mês é o boleto. */
+  competencia?: string
 }
 export const rascunho = signal<Rascunho | null>(null)
 
@@ -54,11 +59,21 @@ export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarI
   )
   const [cliente, setCliente] = useState(editando?.cliente ?? r?.cliente ?? '')
   const [descricao, setDescricao] = useState(editando?.descricao ?? '')
-  const [data, setData] = useState(editando?.data ?? hoje())
-  const [outroDia, setOutroDia] = useState(Boolean(editando && editando.data !== hoje() && editando.data !== ontem()))
+  const [data, setData] = useState(editando?.data ?? r?.data ?? hoje())
+  const [outroDia, setOutroDia] = useState(() => {
+    const d = editando?.data ?? r?.data
+    return Boolean(d && d !== hoje() && d !== ontem())
+  })
+  // DAS: de qual mês é o boleto (o normal é o do mês anterior à data)
+  const [competencia, setCompetencia] = useState<string | undefined>(editando?.competencia ?? r?.competencia)
   const [tentou, setTentou] = useState(false)
+  const [bloqueio, setBloqueio] = useState<string | null>(null)
+  const ehDAS = tipo === 'saida' && categoria === 'das'
+  const compDAS = competenciaDAS({ data, competencia })
+  const opcoesDAS = [...new Set([1, 2, 3].map((n) => somarMeses(mesDe(data), -n)).concat(compDAS))].sort().reverse()
 
   const ehEntrada = tipo === 'entrada'
+  const disponivel = saldoReserva(e.lancamentos) + (editando?.tipo === 'resgate' ? editando.valor : 0)
   const formaReal: Forma | undefined = forma === 'fiado' ? undefined : forma
   const taxa = ehEntrada && valor && forma !== 'fiado' ? taxaDaForma(valor, formaReal, e.config.taxas) : 0
   const faltando =
@@ -66,8 +81,8 @@ export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarI
     ehEntrada && !categoria ? 'Escolha o serviço.' :
     ehEntrada && !forma ? 'Escolha como a cliente pagou.' :
     tipo === 'saida' && !categoria ? 'Escolha o tipo de gasto.' :
-    tipo === 'resgate' && valor > saldoReserva(e.lancamentos) + (editando?.tipo === 'resgate' ? editando.valor : 0)
-      ? `Na reserva só tem ${brl(saldoReserva(e.lancamentos) + (editando?.tipo === 'resgate' ? editando.valor : 0))}.` :
+    tipo === 'resgate' && valor > disponivel
+      ? disponivel <= 0 ? 'A reserva está vazia: não tem o que tirar.' : `Na reserva só tem ${brl(disponivel)}.` :
     forma === 'fiado' && !cliente.trim() ? 'Escreva o nome de quem ficou com o fiado.' : null
 
   function escolherServico(id: string) {
@@ -78,6 +93,7 @@ export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarI
 
   function salvar() {
     setTentou(true)
+    setBloqueio(null)
     if (faltando || !valor) return
     const dados: Omit<Lancamento, 'id' | 'criadoEm'> = {
       data,
@@ -91,14 +107,22 @@ export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarI
       recebido: !(ehEntrada && forma === 'fiado'),
       // fiado que agora foi pago entra no caixa de hoje (regime de caixa); pago que continua pago mantém a data
       recebidoEm: editando ? recebidoEmAoEditar(editando, forma === 'fiado', hoje()) : undefined,
+      competencia: ehDAS ? compDAS : undefined,
     }
     if (editando) {
-      atualizarLancamento(editando.id, dados)
+      if (!atualizarLancamento(editando.id, dados)) {
+        setBloqueio(TEXTO_RESERVA_USADA)
+        return
+      }
       avisar('Alterado!')
       voltar('')
       return
     }
     const novo = adicionarLancamento(dados)
+    if (!novo) {
+      setBloqueio(tipo === 'resgate' ? 'A reserva está vazia: não tem o que tirar.' : 'Digite o valor.')
+      return
+    }
     const sugerir = ehEntrada && forma !== 'fiado' && e.config.reservaPorAtendimento > 0
     voltar('')
     const desfazer = { rotulo: 'Desfazer', fazer: () => removerLancamento(novo.id) }
@@ -109,7 +133,7 @@ export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarI
             rotulo: 'Guardar',
             fazer: () => {
               const r = adicionarLancamento({ data, tipo: 'reserva', valor: e.config.reservaPorAtendimento, taxa: 0, categoria: 'reserva', recebido: true })
-              avisar('Guardado na reserva.', { rotulo: 'Desfazer', fazer: () => removerLancamento(r.id) })
+              if (r) avisar('Guardado na reserva.', { rotulo: 'Desfazer', fazer: () => { if (!removerLancamento(r.id)) avisar(TEXTO_RESERVA_USADA) } })
             },
           }]
         : desfazer,
@@ -119,8 +143,12 @@ export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarI
   function apagar() {
     if (!editando) return
     const l = removerLancamento(editando.id)
+    if (!l) {
+      setBloqueio(TEXTO_RESERVA_USADA)
+      return
+    }
     voltar('')
-    if (l) avisar('Anotação apagada.', { rotulo: 'Desfazer', fazer: () => restaurarLancamento(l) })
+    avisar('Anotação apagada.', { rotulo: 'Desfazer', fazer: () => { if (!restaurarLancamento(l)) avisar(TEXTO_RESERVA_USADA) } })
   }
 
   if (editarId && !editando) {
@@ -175,6 +203,17 @@ export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarI
         </fieldset>
       )}
 
+      {ehDAS && (
+        <Escolha<string>
+          rotulo="De qual mês é esse DAS?"
+          valor={compDAS}
+          aoMudar={setCompetencia}
+          colunas={3}
+          opcoes={opcoesDAS.map((m) => ({ valor: m, rotulo: capitalizar(nomeMesCurto(m)), extra: m.slice(0, 4) }))}
+        />
+      )}
+      {ehDAS && <p class="campo-dica">Normalmente é o do mês passado. Assim o app marca certo qual DAS já foi pago.</p>}
+
       {tipo === 'retirada' && (
         <Nota>Separar o dinheiro da casa do dinheiro do salão ajuda a saber quanto o salão rende de verdade. {e.config.salarioMensal > 0 ? `Seu combinado: ${brlCurto(e.config.salarioMensal)} por mês.` : 'Você ainda não combinou um salário. Dá para combinar em Ajustes.'}</Nota>
       )}
@@ -209,7 +248,7 @@ export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarI
       )}
 
       <CampoTexto id="descricao" rotulo="Anotação (opcional)" valor={descricao} aoMudar={setDescricao}
-        placeholder={tipo === 'saida' ? 'ex.: shampoo e máscara' : ''} />
+        placeholder={tipo === 'saida' ? 'ex.: shampoo e máscara' : ''} maxLength={LIMITES.descricao} />
 
       <Escolha<string>
         rotulo="Quando?"
@@ -229,6 +268,7 @@ export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarI
       </label>}
 
       {tentou && faltando && <p class="erro" role="alert">{faltando}</p>}
+      {bloqueio && !faltando && <p class="erro" role="alert">{bloqueio}</p>}
 
       <div class="rodape-acoes rodape-fixo">
         <button class="btn btn-primario btn-largo" onClick={salvar}>
@@ -238,6 +278,10 @@ export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarI
       </div>
     </Pagina>
   )
+}
+
+function capitalizar(t: string) {
+  return t.charAt(0).toUpperCase() + t.slice(1)
 }
 
 function ontem() {

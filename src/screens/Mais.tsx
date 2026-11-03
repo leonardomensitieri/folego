@@ -2,7 +2,7 @@ import { useState } from 'preact/hooks'
 import { fiadosAbertos, saldoReserva } from '../domain/calc'
 import { brlCurto } from '../domain/money'
 import type { Centavos } from '../domain/types'
-import { apagarTudoReal, armazenamentoPersistente, atualizarConfig, estado, modo, prefs, recomecarDemo, temDadosReais, trocarModo } from '../state/store'
+import { apagarTudoReal, armazenamentoPersistente, atualizarConfig, estado, leituraFalhou, modo, prefs, recomecarDemo, temDadosReais, trocarModo } from '../state/store'
 import { IcAjuste, IcBalanca, IcCaminhao, IcCelular, IcCheck, IcCofre, IcConversa, IcEscudo, IcInfo, IcNuvem, IcPessoa, IcRecibo, IcSeta } from '../ui/icons'
 import { avisar, BotaoWhatsApp, CampoNumero, CampoTexto, CampoValor, Escolha, Linha, Nota, Pagina } from '../ui/kit'
 import { ir } from '../ui/router'
@@ -98,12 +98,21 @@ export function Ajustes() {
       {modo.value === 'real' && (
         <>
           <h2 class="secao">Apagar</h2>
-          {!confirmando ? (
+          {leituraFalhou.value ? (
+            <>
+              <button class="btn btn-perigo btn-largo" disabled>Apagar todos os meus dados</button>
+              <p class="campo-dica">Agora não dá para apagar: o app não conseguiu abrir o que está guardado no celular, então não sabe o que apagaria. Toque em “Tentar de novo” no alto da tela.</p>
+            </>
+          ) : !confirmando ? (
             <button class="btn btn-perigo btn-largo" onClick={() => setConfirmando(true)}>Apagar todos os meus dados</button>
           ) : (
             <div class="cartao confirmar">
               <p><b>Tem certeza?</b> Isso apaga tudo deste celular e não tem como desfazer. Faça uma cópia antes se quiser guardar.</p>
-              <button class="btn btn-perigo btn-largo" onClick={() => apagarTudoReal().then(() => { avisar('Dados apagados deste celular.'); ir('', { substituir: true }) })}>Sim, apagar tudo</button>
+              <button class="btn btn-perigo btn-largo" onClick={() => apagarTudoReal().then((ok) => {
+                if (!ok) { setConfirmando(false); avisar('Não deu para apagar agora. Tente de novo depois de abrir o app outra vez.'); return }
+                avisar('Dados apagados deste celular.')
+                ir('', { substituir: true })
+              })}>Sim, apagar tudo</button>
               <button class="btn btn-largo" onClick={() => setConfirmando(false)}>Cancelar</button>
             </div>
           )}

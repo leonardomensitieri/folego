@@ -1,8 +1,8 @@
-import { faturamentoAno, receitaBrutaMes, situacaoDAS, vencimentoDAS } from '../domain/calc'
-import { dataCurta, diasEntre, hoje, nomeMes, nomeMesCurto, somarMeses, tituloMes } from '../domain/dates'
+import { faturamentoAno, primeiroMesDeUso, receitaBrutaMes, situacaoDAS, vencimentoDAS } from '../domain/calc'
+import { dataCurta, diasEntre, mesValido, nomeMes, nomeMesCurto, somarMeses, tituloMes } from '../domain/dates'
 import { MEI, limiteMei } from '../domain/defaults'
 import { brl, brlCurto } from '../domain/money'
-import { alternarDAS, atualizarConfig, estado, mesAtual, modo } from '../state/store'
+import { alternarDAS, atualizarConfig, dataHoje, estado, mesAtual, modo } from '../state/store'
 import { Barra, Cartao, Dinheiro, Nota, Pagina } from '../ui/kit'
 import { IcCheck } from '../ui/icons'
 import { ir } from '../ui/router'
@@ -40,11 +40,13 @@ export function Mei() {
   const limite = limiteMei(ano)
   const fat = faturamentoAno(e.lancamentos, ano)
   const usado = fat / limite
-  // Competências desde que ela começou a usar o app (antes disso o app não sabe se pagou: não acusa atraso falso).
+  // Competências dos últimos 12 meses, desde que ela começou a usar o app (antes disso o app não sabe se pagou:
+  // não acusa atraso falso). Passa da virada do ano: em fevereiro, o DAS de dezembro sem pagar continua aqui.
   // O DAS do mês atual só vence no mês que vem, então a lista vai até o mês passado.
+  const dia = dataHoje.value
   const ultimaComp = somarMeses(mesAtual.value, -1)
-  const primeiroUso = e.lancamentos.reduce((min, l) => (l.data < min ? l.data : min), hoje()).slice(0, 7)
-  const inicio = [primeiroUso, `${ano}-01`, somarMeses(ultimaComp, -11)].sort().reverse()[0]
+  const primeiroUso = primeiroMesDeUso(e.lancamentos, dia)
+  const inicio = [primeiroUso, somarMeses(ultimaComp, -11)].sort().reverse()[0]
   const comps: string[] = []
   for (let c = inicio < ultimaComp ? inicio : ultimaComp; c <= ultimaComp; c = somarMeses(c, 1)) comps.push(c)
 
@@ -68,18 +70,18 @@ export function Mei() {
 
       <h2 class="secao">DAS (boleto mensal do MEI)</h2>
       <p class="muted pequeno">
-        Vence dia {MEI.diaVencimentoDAS} do mês seguinte (se cair em fim de semana, no próximo dia útil). Pagar em dia mantém sua contribuição ao INSS.
+        Vence dia {MEI.diaVencimentoDAS} do mês seguinte (se cair em fim de semana ou feriado, no próximo dia útil). Pagar em dia mantém sua contribuição ao INSS.
         Seu DAS: {brl(e.config.valorDAS)} (troque em Ajustes se mudar).
       </p>
       <ul class="lista">
         {[...comps].reverse().map((c) => {
-          const s = situacaoDAS(e.config, c, hoje(), e.lancamentos)
+          const s = situacaoDAS(e.config, c, dia, e.lancamentos)
           return (
             <li>
               <button class={`linha linha-botao das-${s}`} onClick={() => alternarDAS(c)} aria-pressed={s === 'pago'}>
                 <span class="linha-meio">
-                  <span class="linha-titulo">DAS de {nomeMesCurto(c)}</span>
-                  <span class="linha-sub">vence {dataCurta(vencimentoDAS(c))}{s === 'a-vencer' || s === 'vence-logo' ? ` · faltam ${diasEntre(hoje(), vencimentoDAS(c))} dias` : ''} · toque para {s === 'pago' ? 'desmarcar' : 'marcar como pago'}</span>
+                  <span class="linha-titulo">DAS de {nomeMesCurto(c)}{c.slice(0, 4) !== String(ano) ? ` de ${c.slice(0, 4)}` : ''}</span>
+                  <span class="linha-sub">vence {dataCurta(vencimentoDAS(c))}{s === 'a-vencer' || s === 'vence-logo' ? ` · faltam ${diasEntre(dia, vencimentoDAS(c))} dias` : ''} · toque para {s === 'pago' ? 'desmarcar' : 'marcar como pago'}</span>
                 </span>
                 <span class={`linha-direita selo selo-${s}`}>{s === 'pago' && <IcCheck size={18} />}{SELO[s]}</span>
               </button>
@@ -117,7 +119,7 @@ export function Mei() {
 /** Página para imprimir, no formato do Relatório Mensal das Receitas Brutas do MEI. */
 export function RelatorioMei({ mes }: { mes: string }) {
   const e = estado.value
-  const m = /^\d{4}-\d{2}$/.test(mes) ? mes : mesAtual.value
+  const m = mesValido(mes) ? mes : mesAtual.value
   const total = receitaBrutaMes(e.lancamentos, m)
   const [y, mm] = m.split('-')
   const demo = modo.value === 'demo'
