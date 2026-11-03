@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { brl, brlCurto, parseValor } from './money'
 import { somarMeses, diasEntre, hoje } from './dates'
 import {
-  custoIndicacao, custoMensal, diasDeFolego, faturamentoAno, fiadosAbertos, margemServico, receitaBrutaMes,
-  resumoDoMes, saldoReserva, simular, situacaoDAS, taxaDaForma,
+  custoIndicacao, custoMensal, diasDeFolego, faturamentoAno, fiadosAbertos, margemServico, primeiroMesDeUso, receitaBrutaMes,
+  resumoDoMes, saldoReserva, simular, situacaoDAS, taxaDaForma, vencimentoDAS,
 } from './calc'
 import { interpretar } from './parser'
 import { gerarBackup, lerBackup, paraCSV } from './backup'
@@ -30,6 +30,11 @@ describe('dinheiro', () => {
     expect(parseValor('80.90')).toBe(8090)
     expect(parseValor('abc')).toBeNull()
     expect(parseValor('')).toBeNull()
+    // ambíguo ou malformado: melhor perguntar do que adivinhar
+    expect(parseValor('1,234')).toBeNull()
+    expect(parseValor('1.2.3')).toBeNull()
+    expect(parseValor('10.000,00')).toBe(1000000)
+    expect(parseValor('0,99')).toBe(99)
   })
 })
 
@@ -82,13 +87,21 @@ describe('reserva e fôlego', () => {
     expect(diasDeFolego(0, 90000)).toBe(0)
     expect(diasDeFolego(1000, 0)).toBe(0)
   })
-  it('custo mensal usa estimativa sem histórico e média com histórico', () => {
+  it('custo mensal: estimativa sem histórico; com histórico, o maior dos dois (conservador)', () => {
     const e = estadoInicial()
     e.config.gastoMensalEstimado = 60000
     e.config.salarioMensal = 100000
     expect(custoMensal(e, '2026-11')).toBe(160000)
-    e.lancamentos = [L({ data: '2026-10-05', tipo: 'saida', valor: 50000, categoria: 'produtos' })]
-    expect(custoMensal(e, '2026-11')).toBe(150000)
+    // mês incompleto (começo de uso) não infla o fôlego
+    e.lancamentos = [L({ data: '2026-10-28', tipo: 'saida', valor: 5000, categoria: 'produtos' })]
+    expect(custoMensal(e, '2026-11')).toBe(160000)
+    // histórico maior que a estimativa vale
+    e.lancamentos = [L({ data: '2026-10-05', tipo: 'saida', valor: 90000, categoria: 'produtos' })]
+    expect(custoMensal(e, '2026-11')).toBe(190000)
+  })
+  it('fôlego sem erro de arredondamento', () => {
+    expect(diasDeFolego(100000, 100000)).toBe(30)
+    expect(diasDeFolego(125000, 62500)).toBe(60)
   })
 })
 
@@ -122,6 +135,8 @@ describe('taxas, margem e "e se?"', () => {
   })
   it('indicação com benefício compensa se a cliente volta', () => {
     expect(custoIndicacao(1000, 4000, 4)).toEqual({ ganhoPrimeiraVisita: 3000, ganhoNoAno: 15000, valeAPena: true })
+    // "0 visitas" vira 1 (a primeira): sem contradição entre a 1ª visita e o ano
+    expect(custoIndicacao(1000, 4000, 0)).toEqual({ ganhoPrimeiraVisita: 3000, ganhoNoAno: 3000, valeAPena: true })
   })
 })
 
@@ -135,6 +150,19 @@ describe('MEI', () => {
   it('faturamento do ano usa o valor bruto recebido', () => {
     expect(faturamentoAno(lancs, 2026)).toBe(15000)
     expect(receitaBrutaMes(lancs, '2026-11')).toBe(5000)
+  })
+  it('DAS que vence no fim de semana passa para segunda-feira', () => {
+    expect(vencimentoDAS('2026-11')).toBe('2026-12-21') // 20/12/2026 é domingo
+    expect(vencimentoDAS('2026-09')).toBe('2026-10-20') // terça
+  })
+  it('gasto "DAS do MEI" no mês do vencimento conta como pago', () => {
+    const c = estadoInicial().config
+    expect(situacaoDAS(c, '2026-10', '2026-11-25', [L({ data: '2026-11-18', tipo: 'saida', categoria: 'das', valor: 8605 })])).toBe('pago')
+    expect(situacaoDAS(c, '2026-10', '2026-11-25', [])).toBe('atrasado')
+  })
+  it('primeiro mês de uso', () => {
+    expect(primeiroMesDeUso([], '2026-11-25')).toBe('2026-11')
+    expect(primeiroMesDeUso([L({ data: '2026-08-02' })], '2026-11-25')).toBe('2026-08')
   })
   it('situação do DAS', () => {
     const c = { ...estadoInicial().config, dasPagos: ['2026-09'] }
@@ -178,6 +206,27 @@ describe('backup', () => {
     expect(r.ok).toBe(true)
     if (r.ok) expect(r.estado.lancamentos.length).toBe(e.lancamentos.length)
   })
+  it('recusa cópia malformada que travaria o app', () => {
+    const base = () => gerarBackup(estadoDemo('2026-11', 3))
+    const casos: ((b: ReturnType<typeof base>) => void)[] = [
+      (b) => { (b.estado.config as unknown as Record<string, unknown>).dasPagos = null },
+      (b) => { (b.estado as unknown as Record<string, unknown>).servicos = [null] },
+      (b) => { (b.estado.servicos[0] as unknown as Record<string, unknown>).nome = undefined },
+      (b) => { (b.estado.config.taxas as unknown as Record<string, unknown>).debito = 'x' },
+      (b) => { b.estado.lancamentos[0].taxa = b.estado.lancamentos[0].valor + 1 },
+      (b) => { (b.estado.lancamentos[0] as unknown as Record<string, unknown>).recebido = 'false' },
+      (b) => { b.estado.lancamentos[0].recebidoEm = 'banana' },
+      (b) => { b.estado.lancamentos[0].data = '2026-13-45' },
+      (b) => { (b.estado.lancamentos[0] as unknown as Record<string, unknown>).forma = 'bitcoin' },
+      (b) => { b.estado.lancamentos[1].id = b.estado.lancamentos[0].id },
+      (b) => { b.estado.lancamentos[0].valor = 1e300 },
+    ]
+    for (const estragar of casos) {
+      const b = base()
+      estragar(b)
+      expect(lerBackup(JSON.stringify(b)).ok).toBe(false)
+    }
+  })
   it('recusa arquivo estranho ou com defeito', () => {
     expect(lerBackup('oi').ok).toBe(false)
     expect(lerBackup(JSON.stringify({ formato: 'outro' })).ok).toBe(false)
@@ -187,7 +236,12 @@ describe('backup', () => {
   })
   it('gera planilha CSV com cabeçalho', () => {
     const csv = paraCSV(estadoDemo('2026-11', 3))
-    expect(csv.split('\n')[0]).toContain('Data;Tipo;Categoria')
+    expect(csv.split('\n')[0]).toContain('Data;Tipo;O quê;Valor')
+  })
+  it('planilha não deixa texto virar fórmula no Excel', () => {
+    const e = estadoInicial()
+    e.lancamentos = [L({ descricao: '=HYPERLINK("x")' })]
+    expect(paraCSV(e)).toContain(`"'=HYPERLINK(""x"")"`)
   })
 })
 

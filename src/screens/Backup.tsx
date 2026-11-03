@@ -47,7 +47,7 @@ export function Backup() {
     input.value = ''
     if (!f) return
     if (f.size > 20_000_000) {
-      setErro('Arquivo grande demais para ser um backup do Fôlego.')
+      setErro('Arquivo grande demais para ser uma cópia do Fôlego.')
       return
     }
     f.text().then((t) => {
@@ -63,14 +63,14 @@ export function Backup() {
       if (!confirmarTroca(resumo)) return
       const msg = importarBackup(t)
       setErro(msg)
-      if (!msg) avisar('Backup carregado!')
+      if (!msg) avisar('Cópia carregada!')
     })
   }
 
   return (
     <Pagina titulo="Cópia de segurança" voltarPara="mais">
       <Nota tom="alerta">
-        Seus dados ficam <b>só neste celular</b>. Se o celular quebrar, for trocado ou o app for apagado, eles somem. Faça uma cópia por mês.
+        Seus dados ficam <b>só neste celular</b>. Se o celular quebrar, for trocado ou o app for apagado, eles somem. Faça uma cópia toda semana.
       </Nota>
       {modo.value === 'demo' && <Nota>Você está no modo demonstração. A cópia vai sair com os dados fictícios.</Nota>}
       <p class="muted">Última cópia: {ultimo ?? 'nunca'}</p>
@@ -79,11 +79,17 @@ export function Backup() {
       <p class="campo-dica">No celular abre o “Compartilhar”: mande para você mesma no WhatsApp ou salve no Drive/iCloud.</p>
 
       <h2 class="secao">Voltar uma cópia</h2>
-      <label class="btn btn-largo arquivo">
-        Escolher arquivo de cópia
-        <input type="file" accept="application/json,.json" onChange={importar} />
-      </label>
-      <p class="campo-dica">Atenção: isso troca os dados deste celular pelos da cópia.</p>
+      {modo.value === 'demo' ? (
+        <Nota>Para voltar uma cópia dos seus dados, saia da demonstração primeiro (Mais → Sair da demonstração).</Nota>
+      ) : (
+        <>
+          <label class="btn btn-largo arquivo">
+            Escolher arquivo de cópia
+            <input type="file" accept="application/json,.json" onChange={importar} />
+          </label>
+          <p class="campo-dica">Atenção: isso troca os dados deste celular pelos da cópia. Você vê o resumo antes de confirmar.</p>
+        </>
+      )}
       {erro && <p class="erro" role="alert">{erro}</p>}
 
       <h2 class="secao">Planilha</h2>

@@ -31,7 +31,7 @@ export function Fornecedores() {
 
   return (
     <Pagina titulo="Fornecedores" voltarPara="mais">
-      <Nota>Ter mais de um lugar para comprar o mesmo produto protege quando o preço sobe ou falta mercadoria. Compare antes da compra do mês.</Nota>
+      <Nota>Ter mais de um lugar para comprar o mesmo produto ajuda quando o preço sobe ou falta mercadoria. Compare antes da compra do mês. Mais barato nem sempre compensa: teste em pouca quantidade e veja se o resultado é o mesmo.</Nota>
 
       {porProduto.size === 0 ? (
         <Vazio titulo="Nenhum preço anotado" texto="Comece pelos produtos que mais pesam: descolorante, máscara, shampoo." />
@@ -46,7 +46,7 @@ export function Fornecedores() {
               <ul>
                 {ordenada.map((f) => (
                   <li class={f.id === maisBarato.id && ordenada.length > 1 ? 'melhor' : ''}>
-                    <span>{f.nome}{f.id === maisBarato.id && ordenada.length > 1 && <small> · mais barato</small>}</span>
+                    <span>{f.nome}{f.id === maisBarato.id && ordenada.length > 1 && <small> · menor preço</small>}</span>
                     <span>{brlCurto(f.preco)} <small>{dataCurta(f.data)}{diasEntre(f.data, hoje()) > 90 ? ' (antigo)' : ''}</small></span>
                     <button class="btn-icone pequeno" aria-label={`Apagar ${f.nome}`} onClick={() => removerFornecedor(f.id)}>✕</button>
                   </li>

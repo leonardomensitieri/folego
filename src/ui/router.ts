@@ -14,6 +14,14 @@ function lerRota(): string[] {
 window.addEventListener('hashchange', () => {
   rota.value = lerRota()
   window.scrollTo(0, 0)
+  // leitor de tela: depois de trocar de tela, o foco vai para o título novo
+  setTimeout(() => {
+    const h1 = document.querySelector<HTMLElement>('main h1')
+    if (h1) {
+      h1.tabIndex = -1
+      h1.focus({ preventScroll: true })
+    }
+  }, 60)
 })
 
 export function ir(caminho: string, opcoes: { substituir?: boolean } = {}) {

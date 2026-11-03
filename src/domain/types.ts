@@ -62,6 +62,8 @@ export interface Taxas {
   /** Percentuais da maquininha, ex.: 1.5 = 1,5%. */
   debito: number
   credito: number
+  /** Alguns bancos cobram para receber Pix depois de certo número por mês. Normalmente 0. */
+  pix?: number
 }
 
 export interface Config {
@@ -79,6 +81,14 @@ export interface Config {
   valorDAS: Centavos
   /** Competências (AAAA-MM) do DAS já pagas. */
   dasPagos: string[]
+  /** É MEI? undefined = ainda não respondeu (o app não presume). */
+  ehMei?: boolean
+  /** Nome que ela dá à reserva, ex.: "Fundo do secador" (Kit de Resiliência, hábito 3). */
+  nomeReserva?: string
+  /** "Meu diferencial em uma frase" (Kit, hábito 5). */
+  diferencial?: string
+  /** Plano de 30 dias do Kit: semanas 1 a 4 marcadas como feitas. */
+  plano30?: boolean[]
   ultimoBackup?: number
 }
 

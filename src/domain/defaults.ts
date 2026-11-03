@@ -2,15 +2,24 @@ import type { Categoria, Config, Estado, Servico } from './types'
 
 /**
  * Números públicos do MEI. Conferir todo ano no Portal do Empreendedor (gov.br/mei).
+ * Fontes: docs/discovery/pesquisa-sebrae-mei-concorrentes.md (§3).
  * O valor do DAS fica editável no app porque muda com o salário mínimo.
  */
 export const MEI = {
-  limiteAnual: 8_100_000, // R$ 81.000,00 por ano-calendário
   alertaLimite: 0.8,
   diaVencimentoDAS: 20,
+  /** A partir de 2027 o Relatório Mensal das Receitas Brutas deixa de ser exigido (Res. CGSN 190/2026). */
+  anoFimRelatorioMensal: 2027,
 }
 
-// Serviços que o salão parceiro oferece (formulário de escuta). Preços são exemplos editáveis.
+/** Limite anual de faturamento do MEI: R$ 81 mil até 2026; LC 238/2026 → R$ 110 mil em 2027 e R$ 140 mil a partir de 2028. */
+export function limiteMei(ano: number): number {
+  if (ano >= 2028) return 14_000_000
+  if (ano === 2027) return 11_000_000
+  return 8_100_000
+}
+
+// Serviços comuns num salão de bairro de uma profissional só. Preços são exemplos editáveis.
 export const SERVICOS_PADRAO: Servico[] = [
   { id: 'corte', nome: 'Corte', preco: 5000, custoProduto: 300, minutos: 45, ativo: true },
   { id: 'alisamento', nome: 'Alisamento', preco: 18000, custoProduto: 4500, minutos: 180, ativo: true },
@@ -43,8 +52,9 @@ export const CONFIG_PADRAO: Config = {
   reservaPorAtendimento: 500,
   gastoMensalEstimado: 60_000,
   // Taxas típicas de maquininha; a dona troca pelas taxas dela.
-  taxas: { debito: 1.5, credito: 3.5 },
-  valorDAS: 8_200,
+  taxas: { debito: 1.5, credito: 3.5, pix: 0 },
+  // DAS 2026 para serviços: 5% do salário mínimo (R$ 1.621) + R$ 5 de ISS
+  valorDAS: 8_605,
   dasPagos: [],
 }
 

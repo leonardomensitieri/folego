@@ -3,34 +3,40 @@ import { fiadosAbertos, saldoReserva } from '../domain/calc'
 import { brlCurto } from '../domain/money'
 import type { Centavos } from '../domain/types'
 import { apagarTudoReal, armazenamentoPersistente, atualizarConfig, estado, modo, prefs, recomecarDemo, temDadosReais, trocarModo } from '../state/store'
-import { IcAjuste, IcBalanca, IcCaminhao, IcCasa, IcCofre, IcConversa, IcEscudo, IcInfo, IcNuvem, IcPessoa, IcRecibo } from '../ui/icons'
-import { avisar, CampoNumero, CampoValor, Linha, linkWhatsApp, Nota, Pagina } from '../ui/kit'
-import { ir, voltar } from '../ui/router'
+import { IcAjuste, IcBalanca, IcCaminhao, IcCasa, IcCheck, IcCofre, IcConversa, IcEscudo, IcInfo, IcNuvem, IcPessoa, IcRecibo } from '../ui/icons'
+import { avisar, BotaoWhatsApp, CampoNumero, CampoTexto, CampoValor, Escolha, Linha, Nota, Pagina } from '../ui/kit'
+import { ir } from '../ui/router'
 import { estaInstalado } from './Instalar'
+
+export function nomeDaReserva(): string {
+  return estado.value.config.nomeReserva?.trim() || 'Reserva'
+}
 
 export function Mais() {
   const e = estado.value
   const fiado = fiadosAbertos(e.lancamentos).reduce((a, l) => a + l.valor, 0)
+  const feitos = (e.config.plano30 ?? []).filter(Boolean).length
   return (
     <Pagina titulo="Mais">
       <ul class="lista menu">
-        <li><Linha icone={<IcCofre />} titulo="Reserva (fôlego)" sub={`Guardado: ${brlCurto(saldoReserva(e.lancamentos))}`} onClick={() => ir('mais/reserva')} /></li>
-        <li><Linha icone={<IcPessoa />} titulo="A receber (fiado)" sub={fiado ? `${brlCurto(fiado)} para receber` : 'Ninguém devendo'} onClick={() => ir('mais/fiado')} /></li>
+        <li><Linha icone={<IcCofre />} titulo={`${nomeDaReserva()} (fôlego)`} sub={`Guardado: ${brlCurto(saldoReserva(e.lancamentos))}`} onClick={() => ir('mais/reserva')} /></li>
+        <li><Linha icone={<IcPessoa />} titulo="Fiado" sub={fiado ? `${brlCurto(fiado)} para receber` : 'Ninguém com fiado'} onClick={() => ir('mais/fiado')} /></li>
+        <li><Linha icone={<IcCheck />} titulo="Meu plano de 30 dias" sub={`Do Kit de Resiliência · ${feitos} de 4 feitos`} onClick={() => ir('mais/plano')} /></li>
         <li><Linha icone={<IcCaminhao />} titulo="Fornecedores" sub="Compare preços antes de comprar" onClick={() => ir('mais/fornecedores')} /></li>
-        <li><Linha icone={<IcRecibo />} titulo="MEI em dia" sub="DAS, limite e relatório mensal" onClick={() => ir('mais/mei')} /></li>
+        <li><Linha icone={<IcRecibo />} titulo="MEI em dia" sub={e.config.ehMei === false ? 'Você disse que não é MEI' : 'DAS, limite e relatório mensal'} onClick={() => ir('mais/mei')} /></li>
         <li>
           <a class="linha linha-botao" href={`${import.meta.env.BASE_URL}laboratorio/`}>
             <span class="linha-icone" aria-hidden="true"><IcBalanca /></span>
             <span class="linha-meio">
               <span class="linha-titulo">Treinar decisões (Laboratório)</span>
-              <span class="linha-sub">Jogo dos choques: concorrente, dólar, secador...</span>
+              <span class="linha-sub">O jogo dos choques: concorrente, dólar, secador…</span>
             </span>
           </a>
         </li>
-        <li><Linha icone={<IcConversa />} titulo="Mensagens prontas" sub="Aviso de ausência, retorno, cobrança" onClick={() => ir('mais/mensagens')} /></li>
-        {!estaInstalado() && <li><Linha icone={<IcCasa />} titulo="Instalar no celular" sub="Abrir como app e proteger os dados" onClick={() => ir('mais/instalar')} /></li>}
+        <li><Linha icone={<IcConversa />} titulo="Mensagens prontas" sub="Ausência, retorno, horário livre, indicação" onClick={() => ir('mais/mensagens')} /></li>
+        {!estaInstalado() && <li><Linha icone={<IcCasa />} titulo="Instalar no celular" sub="Abrir como app, sem internet" onClick={() => ir('mais/instalar')} /></li>}
         <li><Linha icone={<IcNuvem />} titulo="Cópia de segurança" sub="Guardar e voltar seus dados" onClick={() => ir('mais/backup')} /></li>
-        <li><Linha icone={<IcAjuste />} titulo="Ajustes" sub="Salário, meta, taxas da maquininha" onClick={() => ir('mais/ajustes')} /></li>
+        <li><Linha icone={<IcAjuste />} titulo="Ajustes" sub="Salário, reserva, maquininha, letra maior" onClick={() => ir('mais/ajustes')} /></li>
         <li><Linha icone={<IcEscudo />} titulo="Privacidade e limites" sub="Onde ficam seus dados" onClick={() => ir('mais/privacidade')} /></li>
         <li><Linha icone={<IcInfo />} titulo="Sobre o Fôlego" sub="Projeto de extensão" onClick={() => ir('mais/sobre')} /></li>
       </ul>
@@ -40,12 +46,12 @@ export function Mais() {
         <>
           <Nota>Você está vendo dados <b>fictícios</b>. Nada aqui é real.</Nota>
           <button class="btn btn-primario btn-largo" onClick={() => trocarModo('real').then(() => ir('', { substituir: true }))}>
-            {temDadosReais.value ? 'Voltar para os meus dados' : 'Começar com os meus dados'}
+            {temDadosReais.value ? 'Sair da demonstração (voltar aos meus dados)' : 'Sair da demonstração e começar'}
           </button>
           <button class="btn btn-largo" onClick={() => { recomecarDemo(); avisar('Demonstração reiniciada.') }}>Reiniciar a demonstração</button>
         </>
       ) : (
-        <button class="btn btn-largo" onClick={() => trocarModo('demo').then(() => ir('', { substituir: true }))}>Ver com dados de exemplo</button>
+        <button class="btn btn-largo" onClick={() => trocarModo('demo').then(() => ir('', { substituir: true }))}>Ver com dados de exemplo (fictícios)</button>
       )}
     </Pagina>
   )
@@ -57,27 +63,36 @@ export function Ajustes() {
   const setV = (k: 'salarioMensal' | 'metaReserva' | 'reservaPorAtendimento' | 'gastoMensalEstimado' | 'valorDAS') => (v: Centavos | null) => atualizarConfig({ [k]: v ?? 0 })
   return (
     <Pagina titulo="Ajustes" voltarPara="mais">
-      <h2 class="secao">Casa e salão</h2>
-      <CampoValor id="salario" rotulo="Quanto o salão te paga por mês (seu salário)" valor={c.salarioMensal} aoMudar={setV('salarioMensal')} />
-      <CampoValor id="gasto" rotulo="Gastos do salão num mês normal (estimativa)" valor={c.gastoMensalEstimado} aoMudar={setV('gastoMensalEstimado')} />
-
-      <h2 class="secao">Reserva</h2>
-      <CampoValor id="meta" rotulo="Meta da reserva" valor={c.metaReserva} aoMudar={setV('metaReserva')} />
-      <CampoValor id="porat" rotulo="Sugestão para guardar a cada atendimento" valor={c.reservaPorAtendimento} aoMudar={setV('reservaPorAtendimento')} />
-
-      <h2 class="secao">Maquininha</h2>
-      <CampoNumero id="tdeb" rotulo="Taxa no débito" valor={c.taxas.debito} sufixo="%" max={20} passo={0.1} aoMudar={(v) => atualizarConfig({ taxas: { ...c.taxas, debito: v } })} />
-      <CampoNumero id="tcred" rotulo="Taxa no crédito" valor={c.taxas.credito} sufixo="%" max={30} passo={0.1} aoMudar={(v) => atualizarConfig({ taxas: { ...c.taxas, credito: v } })} />
-      <p class="campo-dica">Veja as taxas no app da sua maquininha. Elas valem para os próximos lançamentos.</p>
-
-      <h2 class="secao">MEI</h2>
-      <CampoValor id="das" rotulo="Valor do seu DAS mensal" valor={c.valorDAS} aoMudar={setV('valorDAS')} />
-
       <h2 class="secao">Leitura</h2>
       <label class="interruptor">
         <input type="checkbox" checked={prefs.value.letraGrande} onChange={(ev) => (prefs.value = { ...prefs.value, letraGrande: (ev.currentTarget as HTMLInputElement).checked })} />
         <span>Letra maior</span>
       </label>
+
+      <h2 class="secao">Casa e salão</h2>
+      <CampoValor id="salario" rotulo="Quanto o salão paga a você por mês (seu salário)" valor={c.salarioMensal} aoMudar={setV('salarioMensal')} />
+      <CampoValor id="gasto" rotulo="Quanto o salão gasta num mês normal (mais ou menos)" valor={c.gastoMensalEstimado} aoMudar={setV('gastoMensalEstimado')} />
+
+      <h2 class="secao">Reserva</h2>
+      <CampoTexto id="nome-reserva" rotulo="Nome da sua reserva" valor={c.nomeReserva ?? ''} aoMudar={(v) => atualizarConfig({ nomeReserva: v })}
+        placeholder="ex.: Fundo do secador" maxLength={30} dica="Dar um nome ajuda a só usar esse dinheiro em emergência do salão." />
+      <CampoValor id="meta" rotulo="Meta da reserva" valor={c.metaReserva} aoMudar={setV('metaReserva')} />
+      <CampoValor id="porat" rotulo="Quanto guardar a cada atendimento (sugestão)" valor={c.reservaPorAtendimento} aoMudar={setV('reservaPorAtendimento')} />
+
+      <h2 class="secao">Maquininha</h2>
+      <CampoNumero id="tdeb" rotulo="Taxa no débito" valor={c.taxas.debito} sufixo="%" max={20} passo={0.1} aoMudar={(v) => atualizarConfig({ taxas: { ...c.taxas, debito: v } })} />
+      <CampoNumero id="tcred" rotulo="Taxa no crédito" valor={c.taxas.credito} sufixo="%" max={30} passo={0.1} aoMudar={(v) => atualizarConfig({ taxas: { ...c.taxas, credito: v } })} />
+      <CampoNumero id="tpix" rotulo="Taxa para receber Pix (se o seu banco cobrar)" valor={c.taxas.pix ?? 0} sufixo="%" max={10} passo={0.1} aoMudar={(v) => atualizarConfig({ taxas: { ...c.taxas, pix: v } })} />
+      <p class="campo-dica">Veja as taxas no app da sua maquininha e do seu banco. Elas valem para as próximas anotações.</p>
+
+      <h2 class="secao">MEI</h2>
+      <Escolha<'sim' | 'nao'>
+        rotulo="Você é MEI (tem CNPJ de microempreendedora)?"
+        valor={c.ehMei === undefined ? undefined : c.ehMei ? 'sim' : 'nao'}
+        aoMudar={(v) => atualizarConfig({ ehMei: v === 'sim' })}
+        opcoes={[{ valor: 'sim', rotulo: 'Sim' }, { valor: 'nao', rotulo: 'Não' }]}
+      />
+      {c.ehMei !== false && <CampoValor id="das" rotulo="Valor do seu DAS por mês" valor={c.valorDAS} aoMudar={setV('valorDAS')} />}
 
       {modo.value === 'real' && (
         <>
@@ -87,7 +102,7 @@ export function Ajustes() {
           ) : (
             <div class="cartao confirmar">
               <p><b>Tem certeza?</b> Isso apaga tudo deste celular e não tem como desfazer. Faça uma cópia antes se quiser guardar.</p>
-              <button class="btn btn-perigo btn-largo" onClick={() => apagarTudoReal().then(() => { avisar('Dados apagados.'); ir('', { substituir: true }) })}>Sim, apagar tudo</button>
+              <button class="btn btn-perigo btn-largo" onClick={() => apagarTudoReal().then(() => { avisar('Dados apagados deste celular.'); ir('', { substituir: true }) })}>Sim, apagar tudo</button>
               <button class="btn btn-largo" onClick={() => setConfirmando(false)}>Cancelar</button>
             </div>
           )}
@@ -98,24 +113,33 @@ export function Ajustes() {
 }
 
 export function Privacidade() {
+  const p = armazenamentoPersistente.value
   return (
     <Pagina titulo="Privacidade e limites" voltarPara="mais">
       <div class="texto">
         <h2>Onde ficam seus dados</h2>
-        <p>Tudo o que você lança fica guardado <b>só neste celular</b>, dentro do navegador. O Fôlego não tem servidor, não pede cadastro, não usa senha e não envia seus números para ninguém — nem para a equipe do projeto, nem para a faculdade, nem para inteligência artificial.</p>
-        <p>O app só usa a internet para se atualizar. Para isso o celular baixa os arquivos do app do GitHub (serviço que hospeda o site), que, como todo site, registra o endereço de internet (IP) do aparelho. Depois de aberto uma vez, funciona sem internet.</p>
+        <p>Tudo o que você anota fica <b>só neste celular</b>. O Fôlego não tem servidor, cadastro nem senha. A equipe do projeto e a faculdade não veem seus números. Nenhuma inteligência artificial lê seus dados.</p>
+        <h2>Quando algo sai do celular (só se você tocar)</h2>
+        <ul>
+          <li><b>WhatsApp:</b> o texto da mensagem vai para o WhatsApp, que é da empresa Meta.</li>
+          <li><b>Cópia de segurança e planilha:</b> o arquivo vai para onde você mandar.</li>
+          <li><b>Microfone do teclado:</b> o teclado pode mandar a sua voz para o Google ou a Apple para virar texto.</li>
+          <li><b>Abrir e atualizar o app:</b> o celular baixa os arquivos do GitHub (o serviço que hospeda o app). Como qualquer site, ele vê o endereço de internet do aparelho.</li>
+        </ul>
         <h2>Para que serve</h2>
-        <p>Organizar o que entra e sai do seu salão, acompanhar sua reserva e montar o relatório mensal do MEI. Os dados ficam até você apagar.</p>
-        <h2>Cópia de segurança</h2>
-        <p>Se você mandar a cópia de segurança por WhatsApp, e-mail ou Drive, o arquivo passa por esses serviços. Guarde num lugar só seu.</p>
-        <p>Armazenamento protegido contra limpeza automática: <b>{armazenamentoPersistente.value === true ? 'sim' : armazenamentoPersistente.value === false ? 'não garantido neste navegador' : 'não informado'}</b>. Por isso, faça cópias de segurança.</p>
-        <h2>O que o app guarda</h2>
-        <p>Valores, datas, serviços, gastos e, se você quiser, o primeiro nome de quem ficou devendo. Não guarda telefone, CPF, endereço nem foto.</p>
-        <p>Se você anotar nomes de clientes, quem cuida desses dados é você: anote só o necessário (um apelido basta). Use também o bloqueio de tela do celular.</p>
-        <h2>Você manda nos seus dados</h2>
-        <p>Você pode fazer uma cópia, levar para outro celular ou apagar tudo em Ajustes. Ao apagar, não sobra nada em lugar nenhum.</p>
+        <p>Organizar o que entra e sai do seu salão, acompanhar a reserva e montar o relatório mensal do MEI. Os dados ficam até você apagar.</p>
+        <h2>Dados das suas clientes</h2>
+        <p>Se você anotar o nome de uma cliente, quem cuida desse dado é você. Anote só o primeiro nome ou um apelido. Se a cliente pedir, troque ou apague. O app não guarda telefone, CPF, endereço nem foto.</p>
+        <h2>Apagar</h2>
+        <p>Em Ajustes, “Apagar todos os meus dados” limpa este celular. As cópias que você mandou para WhatsApp, Drive ou e-mail continuam lá até você apagar.</p>
+        <h2>O celular pode apagar sozinho?</h2>
+        <p>{p === true
+          ? 'Este celular prometeu guardar os dados do app. Mesmo assim, faça cópias.'
+          : 'Pode acontecer se faltar espaço ou se você limpar os dados do navegador. Por isso: instale o app e faça cópias de segurança.'}</p>
         <h2>Limites</h2>
-        <p>O Fôlego é uma ferramenta educativa de organização. <b>Não é consultoria financeira, contábil ou jurídica</b> e não garante resultado. As contas de “E se…?” mostram efeitos prováveis a partir dos números que você digitou. Para decisões importantes, procure o Sebrae (0800 570 0800) ou um contador.</p>
+        <p>O Fôlego é uma ferramenta educativa de organização. <b>Não é consultoria financeira, contábil ou jurídica</b> e não garante resultado. As contas de “Decidir” são aproximadas, feitas com os números que você digitou. Quem decide é você. Para decisões importantes, procure o Sebrae (0800 570 0800) ou um contador.</p>
+        <h2>Quem fez</h2>
+        <p>Equipe do Projeto de Extensão “Negócio à Prova de Choques”, curso de Administração da Faculdade HUB, 2º semestre de 2026. Dúvidas: fale com a equipe que apresentou o app a você.</p>
       </div>
     </Pagina>
   )
@@ -125,15 +149,15 @@ export function Sobre() {
   return (
     <Pagina titulo="Sobre o Fôlego" voltarPara="mais">
       <div class="texto">
-        <p><b>Fôlego</b> é o caixa de bolso para salões de uma profissional só: anotar entradas e saídas em segundos, separar o dinheiro da casa do dinheiro do salão, formar uma reserva e ver o efeito de uma decisão antes de tomá-la.</p>
-        <p>Nasceu no Projeto de Extensão “Negócio à Prova de Choques: Laboratório de Decisões sob Incerteza e Resiliência Empresarial”, da graduação em Administração da Faculdade HUB (2º semestre de 2026), como parte digital do Kit de Resiliência entregue à organização parceira.</p>
+        <p><b>Fôlego</b> é o caixa de bolso para salões de uma profissional só: anotar o que entrou e o que saiu em segundos, separar o dinheiro da casa do dinheiro do salão, formar uma reserva e ver o efeito de uma decisão antes de tomá-la.</p>
+        <p>Nasceu no Projeto de Extensão “Negócio à Prova de Choques: Laboratório de Decisões sob Incerteza e Resiliência Empresarial”, da graduação em Administração da Faculdade HUB (2º semestre de 2026), como parte digital do Kit de Resiliência.</p>
         <p>Os cinco hábitos do Kit viraram partes do app:</p>
         <ol>
-          <li>Separar casa e salão → “Tirei pra casa” e o seu salário mensal.</li>
-          <li>Anotar entradas e saídas → “Recebi”, “Gastei” e “Escreva do seu jeito”.</li>
-          <li>Formar uma reserva → Fôlego.</li>
+          <li>Separar casa e salão → “Tirei pra casa” e o seu salário do mês.</li>
+          <li>Anotar entradas e saídas → Atendimento rápido, “Recebi”, “Gastei” e “Escreva do seu jeito”.</li>
+          <li>Formar uma reserva → Fôlego, com o nome que você escolher.</li>
           <li>Ter mais de um fornecedor → Fornecedores.</li>
-          <li>Manter o vínculo com as clientes → Mensagens prontas e A receber.</li>
+          <li>Manter o vínculo com as clientes → “Meu diferencial” e Mensagens prontas.</li>
         </ol>
         <p class="muted pequeno">Versão {__APP_VERSION__}. Código feito com apoio de inteligência artificial e revisado pela equipe; testado apenas com dados fictícios.</p>
       </div>
@@ -141,44 +165,88 @@ export function Sobre() {
   )
 }
 
-const MENSAGENS = [
-  {
-    titulo: 'Aviso de ausência (semana sem atender)',
-    texto: 'Oi! Tudo bem? 😊 Vou precisar ficar fora do salão de __/__ a __/__ por um imprevisto. Seu horário está guardado: me responde aqui que a gente remarca do jeito melhor para você. Obrigada pela compreensão!',
-  },
-  {
-    titulo: 'Lembrete de retorno',
-    texto: 'Oi! Tudo bem? Já faz um tempinho do seu último atendimento. Quer garantir um horário nesta semana? Tenho vagas na __ e na __. 💇‍♀️',
-  },
-  {
-    titulo: 'Horário livre de última hora',
-    texto: 'Oi! Abriu um horário hoje às __h. Se quiser aproveitar, é só me responder aqui. 😊',
-  },
-  {
-    titulo: 'Agradecimento pela indicação',
-    texto: 'Oi! Muito obrigada por me indicar para a sua amiga. 💜 No seu próximo atendimento você tem um presentinho de agradecimento.',
-  },
-  {
-    titulo: 'Sinal para horário disputado',
-    texto: 'Oi! Para garantir o horário de __/__ às __h, peço um sinal de R$ __ por Pix. O valor é descontado no dia. Combinado?',
-  },
-]
+function mensagens(diferencial: string) {
+  const dif = diferencial.trim()
+  return [
+    {
+      titulo: 'Aviso de ausência (uma semana sem atender)',
+      texto: 'Oi! Tudo bem? 😊 Vou precisar ficar fora do salão de __/__ a __/__ por um imprevisto. Seu horário está guardado: me responde aqui que a gente remarca do jeito que for melhor para você. Obrigada pela compreensão!',
+    },
+    {
+      titulo: 'Lembrete de retorno',
+      texto: `Oi! Tudo bem? Já faz um tempinho do seu último atendimento. Quer garantir um horário nesta semana? Tenho vaga na __ e na __.${dif ? ` ${dif}` : ''} 💇‍♀️`,
+    },
+    {
+      titulo: 'Horário livre de última hora',
+      texto: 'Oi! Abriu um horário hoje às __h. Se quiser aproveitar, é só me responder aqui. 😊',
+    },
+    {
+      titulo: 'Agradecimento pela indicação',
+      texto: 'Oi! Muito obrigada por me indicar para a sua amiga. 💜 No seu próximo atendimento você tem um presentinho de agradecimento.',
+    },
+    {
+      titulo: 'Sinal para horário disputado',
+      texto: 'Oi! Para garantir o horário de __/__ às __h, peço um sinal de R$ __ por Pix. O valor é descontado no dia. Combinado?',
+    },
+  ]
+}
 
 export function Mensagens() {
+  const c = estado.value.config
   return (
     <Pagina titulo="Mensagens prontas" voltarPara="mais">
-      <p class="intro">Toque para abrir no WhatsApp. Você completa os espaços (__) e escolhe para quem mandar.</p>
-      {MENSAGENS.map((m) => (
+      <CampoTexto id="diferencial" rotulo="Meu diferencial em uma frase" valor={c.diferencial ?? ''} aoMudar={(v) => atualizarConfig({ diferencial: v })}
+        placeholder="ex.: Atendo uma cliente por vez, com calma e cuidado." maxLength={120}
+        dica="Do Kit de Resiliência: sua vantagem é a confiança, não o preço. Essa frase entra no lembrete de retorno." />
+      <p class="intro">Toque para mandar. Você completa os espaços (__) e escolhe para quem.</p>
+      {mensagens(c.diferencial ?? '').map((m) => (
         <div class="cartao mensagem">
           <h3>{m.titulo}</h3>
           <p>{m.texto}</p>
           <div class="mensagem-acoes">
-            <a class="btn btn-whats" href={linkWhatsApp(m.texto)} target="_blank" rel="noopener noreferrer">Abrir no WhatsApp</a>
+            <BotaoWhatsApp texto={m.texto} />
             <button class="btn" onClick={() => navigator.clipboard?.writeText(m.texto).then(() => avisar('Mensagem copiada.'), () => avisar('Não deu para copiar.'))}>Copiar</button>
           </div>
         </div>
       ))}
-      <button class="btn btn-largo" onClick={() => voltar('mais')}>Voltar</button>
+    </Pagina>
+  )
+}
+
+const PLANO = [
+  'Semana 1 — Combinar o valor que o salão me paga por mês e começar a anotar entradas e saídas.',
+  'Semana 2 — Dar nome à reserva e fazer o primeiro depósito.',
+  'Semana 3 — Anotar ao menos dois preços por produto em Fornecedores.',
+  'Semana 4 — Escrever meu diferencial e a mensagem de aviso de ausência.',
+]
+
+/** "Meu plano para os próximos 30 dias", do Kit de Resiliência, como lista de marcar (fica só no celular). */
+export function Plano30() {
+  const c = estado.value.config
+  const feito = c.plano30 ?? [false, false, false, false]
+  return (
+    <Pagina titulo="Meu plano de 30 dias" voltarPara="mais">
+      <p class="intro">Do Kit de Resiliência. Um passo pequeno por semana.</p>
+      <ul class="lista">
+        {PLANO.map((t, i) => (
+          <li>
+            <label class="interruptor plano-item">
+              <input type="checkbox" checked={feito[i]} onChange={(ev) => {
+                const novo = [...feito]
+                novo[i] = (ev.currentTarget as HTMLInputElement).checked
+                atualizarConfig({ plano30: novo })
+                if (novo[i]) avisar('Muito bem! Passo feito. ✅')
+              }} />
+              <span>{t}</span>
+            </label>
+          </li>
+        ))}
+      </ul>
+      <div class="acoes-pequenas">
+        <button class="btn-pilula" onClick={() => ir('mais/ajustes')}>Salário e reserva</button>
+        <button class="btn-pilula" onClick={() => ir('mais/fornecedores')}>Fornecedores</button>
+        <button class="btn-pilula" onClick={() => ir('mais/mensagens')}>Mensagens</button>
+      </div>
     </Pagina>
   )
 }

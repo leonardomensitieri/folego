@@ -1,4 +1,6 @@
-import { carregado, erroArmazenamento, estado, modo } from './state/store'
+import { Component, type ComponentChildren } from 'preact'
+import { carregado, dadosComDefeito, erroArmazenamento, estado, leituraFalhou, modo, tentarDeNovo, trocarModo } from './state/store'
+import { gerarBackup } from './domain/backup'
 import { IcBalanca, IcCasa, IcLista, IcMais } from './ui/icons'
 import { Toast } from './ui/kit'
 import { ir, rota } from './ui/router'
@@ -6,7 +8,7 @@ import { Inicio } from './screens/Inicio'
 import { Lancar } from './screens/Lancar'
 import { Movimentos } from './screens/Movimentos'
 import { Decidir, EditarServico } from './screens/Decidir'
-import { Ajustes, Mais, Mensagens, Privacidade, Sobre } from './screens/Mais'
+import { Ajustes, Mais, Mensagens, Plano30, Privacidade, Sobre } from './screens/Mais'
 import { Reserva } from './screens/Reserva'
 import { Fiado } from './screens/Fiado'
 import { Fornecedores } from './screens/Fornecedores'
@@ -17,7 +19,7 @@ import { Instalar } from './screens/Instalar'
 
 const ABAS = [
   { id: '', rotulo: 'Início', Icone: IcCasa },
-  { id: 'movimentos', rotulo: 'Movimentos', Icone: IcLista },
+  { id: 'movimentos', rotulo: 'Meu mês', Icone: IcLista },
   { id: 'decidir', rotulo: 'Decidir', Icone: IcBalanca },
   { id: 'mais', rotulo: 'Mais', Icone: IcMais },
 ]
@@ -34,7 +36,7 @@ function Tela() {
     case '':
       return <Inicio />
     case 'lancar':
-      return <Lancar key={`${b}-${c ?? ''}`} tipo={b} params={c} />
+      return <Lancar key={`novo-${b}`} tipo={b} />
     case 'editar':
       return <Lancar key={`ed-${b}`} editarId={b} />
     case 'movimentos':
@@ -57,12 +59,47 @@ function Tela() {
         case 'privacidade': return <Privacidade />
         case 'sobre': return <Sobre />
         case 'instalar': return <Instalar />
+        case 'plano': return <Plano30 />
         default: return <Mais />
       }
     case 'comecar':
       return <Comecar passo={b ?? '1'} />
     default:
       return <Inicio />
+  }
+}
+
+function baixarComoEsta() {
+  const bruto = dadosComDefeito.value ?? estado.value
+  const blob = new Blob([JSON.stringify(dadosComDefeito.value ? { formato: 'folego-dados-com-defeito', estado: bruto } : gerarBackup(estado.value))], { type: 'application/json' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = 'folego-dados-como-estao.json'
+  a.click()
+}
+
+/** Se alguma tela quebrar, mostra saídas em vez de uma tela branca. */
+class Protecao extends Component<{ children: ComponentChildren }, { erro: boolean }> {
+  state = { erro: false }
+  static getDerivedStateFromError() {
+    return { erro: true }
+  }
+  componentDidCatch(err: unknown) {
+    console.error('[Fôlego] erro de tela', err)
+  }
+  render() {
+    if (!this.state.erro) return this.props.children
+    return (
+      <section class="pagina">
+        <div class="conteudo">
+          <h1>Algo deu errado nesta tela</h1>
+          <p class="intro">Seus dados não foram apagados. Tente voltar para o início. Se continuar, baixe uma cópia dos dados.</p>
+          <button class="btn btn-primario btn-largo" onClick={() => { location.hash = '#/'; this.setState({ erro: false }) }}>Voltar para o início</button>
+          <button class="btn btn-largo" onClick={baixarComoEsta}>Baixar uma cópia dos dados</button>
+          <button class="btn btn-largo" onClick={() => location.reload()}>Recarregar o app</button>
+        </div>
+      </section>
+    )
   }
 }
 
@@ -81,12 +118,25 @@ export function App() {
       <a class="pular" href="#principal">Pular para o conteúdo</a>
       {modo.value === 'demo' && (
         <div class="faixa-demo" role="note">
-          Demonstração com dados fictícios · <button class="link" onClick={() => ir('mais')}>sair</button>
+          <span>Demonstração · dados fictícios</span>
+          <button class="btn-faixa" onClick={() => trocarModo('real').then(() => ir('', { substituir: true }))}>Sair da demonstração</button>
         </div>
       )}
-      {erroArmazenamento.value && <div class="faixa-erro" role="alert">{erroArmazenamento.value}</div>}
+      {erroArmazenamento.value && (
+        <div class="faixa-erro" role="alert">
+          <p>{erroArmazenamento.value}</p>
+          {leituraFalhou.value && (
+            <div class="faixa-acoes">
+              <button class="btn btn-pequeno" onClick={tentarDeNovo}>Tentar de novo</button>
+              {dadosComDefeito.value !== null && <button class="btn btn-pequeno" onClick={baixarComoEsta}>Baixar dados como estão</button>}
+            </div>
+          )}
+        </div>
+      )}
       <main id="principal">
-        <Tela />
+        <Protecao>
+          <Tela />
+        </Protecao>
       </main>
       {mostrarAbas && (
         <nav class="abas" aria-label="Seções do app">

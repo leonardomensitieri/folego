@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'preact/hooks'
-import { taxaDaForma } from '../domain/calc'
+import { useState } from 'preact/hooks'
+import { signal } from '@preact/signals'
+import { recebidoEmAoEditar, saldoReserva, taxaDaForma } from '../domain/calc'
 import { hoje, somarMeses } from '../domain/dates'
 import { SERVICO_AVULSO } from '../domain/defaults'
 import { brl, brlCurto } from '../domain/money'
@@ -11,6 +12,16 @@ import { ROTULO_TIPO } from '../ui/nomes'
 
 type FormaOuFiado = Forma | 'fiado'
 
+/** Rascunho vindo do "Escreva do seu jeito" → "Corrigir". Fica só na memória (nada no endereço da página). */
+export interface Rascunho {
+  valor: Centavos | null
+  categoria: string
+  forma?: Forma
+  fiado: boolean
+  cliente?: string
+}
+export const rascunho = signal<Rascunho | null>(null)
+
 const TITULOS: Record<Tipo, string> = {
   entrada: 'Recebi',
   saida: 'Gastei',
@@ -20,22 +31,27 @@ const TITULOS: Record<Tipo, string> = {
 }
 
 /** Formulário de lançamento. Também serve para editar (passando o id). */
-export function Lancar({ tipo: tipoInicial, params, editarId }: { tipo?: string; params?: string; editarId?: string }) {
+export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarId?: string }) {
   const e = estado.value
   const editando = editarId ? e.lancamentos.find((l) => l.id === editarId) : undefined
-  const q = useMemo(() => new URLSearchParams(params ?? ''), [params])
+  // o rascunho é lido uma vez e descartado
+  const [r] = useState(() => {
+    const x = rascunho.peek()
+    rascunho.value = null
+    return x
+  })
 
   const tipo: Tipo = editando?.tipo ?? (['entrada', 'saida', 'retirada', 'reserva', 'resgate'].includes(tipoInicial ?? '') ? (tipoInicial as Tipo) : 'entrada')
   const servicos = e.servicos.filter((s) => s.ativo)
 
   const [categoria, setCategoria] = useState<string>(
-    editando?.categoria ?? q.get('categoria') ?? (tipo === 'entrada' ? '' : tipo === 'saida' ? '' : tipo),
+    editando?.categoria ?? r?.categoria ?? (tipo === 'entrada' ? '' : tipo === 'saida' ? '' : tipo),
   )
-  const [valor, setValor] = useState<Centavos | null>(editando?.valor ?? (q.get('valor') ? Number(q.get('valor')) : null))
+  const [valor, setValor] = useState<Centavos | null>(editando?.valor ?? r?.valor ?? null)
   const [forma, setForma] = useState<FormaOuFiado | undefined>(
-    editando ? (editando.recebido ? editando.forma : 'fiado') : q.get('fiado') ? 'fiado' : ((q.get('forma') as Forma | null) ?? undefined),
+    editando ? (editando.recebido ? editando.forma : 'fiado') : r?.fiado ? 'fiado' : r?.forma,
   )
-  const [cliente, setCliente] = useState(editando?.cliente ?? q.get('cliente') ?? '')
+  const [cliente, setCliente] = useState(editando?.cliente ?? r?.cliente ?? '')
   const [descricao, setDescricao] = useState(editando?.descricao ?? '')
   const [data, setData] = useState(editando?.data ?? hoje())
   const [outroDia, setOutroDia] = useState(Boolean(editando && editando.data !== hoje() && editando.data !== ontem()))
@@ -49,7 +65,9 @@ export function Lancar({ tipo: tipoInicial, params, editarId }: { tipo?: string;
     ehEntrada && !categoria ? 'Escolha o serviço.' :
     ehEntrada && !forma ? 'Escolha como a cliente pagou.' :
     tipo === 'saida' && !categoria ? 'Escolha o tipo de gasto.' :
-    forma === 'fiado' && !cliente.trim() ? 'Escreva o nome de quem vai pagar depois.' : null
+    tipo === 'resgate' && valor > saldoReserva(e.lancamentos) + (editando?.tipo === 'resgate' ? editando.valor : 0)
+      ? `Na reserva só tem ${brl(saldoReserva(e.lancamentos) + (editando?.tipo === 'resgate' ? editando.valor : 0))}.` :
+    forma === 'fiado' && !cliente.trim() ? 'Escreva o nome de quem ficou com o fiado.' : null
 
   function escolherServico(id: string) {
     setCategoria(id)
@@ -70,7 +88,8 @@ export function Lancar({ tipo: tipoInicial, params, editarId }: { tipo?: string;
       descricao: descricao.trim() || undefined,
       cliente: ehEntrada && cliente.trim() ? cliente.trim() : undefined,
       recebido: !(ehEntrada && forma === 'fiado'),
-      recebidoEm: editando?.recebido && forma !== 'fiado' ? editando.recebidoEm : undefined,
+      // fiado que agora foi pago entra no caixa de hoje (regime de caixa); pago que continua pago mantém a data
+      recebidoEm: editando ? recebidoEmAoEditar(editando, forma === 'fiado', hoje()) : undefined,
     }
     if (editando) {
       atualizarLancamento(editando.id, dados)
@@ -81,12 +100,18 @@ export function Lancar({ tipo: tipoInicial, params, editarId }: { tipo?: string;
     const novo = adicionarLancamento(dados)
     const sugerir = ehEntrada && forma !== 'fiado' && e.config.reservaPorAtendimento > 0
     voltar('')
+    const desfazer = { rotulo: 'Desfazer', fazer: () => removerLancamento(novo.id) }
     avisar(
-      sugerir ? `Salvo! Guardar ${brlCurto(e.config.reservaPorAtendimento)} na reserva?` : 'Salvo!',
+      sugerir ? `Anotado! Guardar ${brlCurto(e.config.reservaPorAtendimento)} na reserva?` : 'Anotado!',
       sugerir
-        ? { rotulo: 'Guardar', fazer: () => { adicionarLancamento({ data, tipo: 'reserva', valor: e.config.reservaPorAtendimento, taxa: 0, categoria: 'reserva', recebido: true }); avisar('Guardado na reserva 🐷') } }
-        : { rotulo: 'Desfazer', fazer: () => removerLancamento(novo.id) },
-      7000,
+        ? [desfazer, {
+            rotulo: 'Guardar',
+            fazer: () => {
+              const r = adicionarLancamento({ data, tipo: 'reserva', valor: e.config.reservaPorAtendimento, taxa: 0, categoria: 'reserva', recebido: true })
+              avisar('Guardado na reserva.', { rotulo: 'Desfazer', fazer: () => removerLancamento(r.id) })
+            },
+          }]
+        : desfazer,
     )
   }
 
@@ -94,13 +119,22 @@ export function Lancar({ tipo: tipoInicial, params, editarId }: { tipo?: string;
     if (!editando) return
     const l = removerLancamento(editando.id)
     voltar('')
-    if (l) avisar('Apagado.', { rotulo: 'Desfazer', fazer: () => restaurarLancamento(l) })
+    if (l) avisar('Anotação apagada.', { rotulo: 'Desfazer', fazer: () => restaurarLancamento(l) })
+  }
+
+  if (editarId && !editando) {
+    return (
+      <Pagina titulo="Anotação" voltarPara="">
+        <p class="intro">Esta anotação não existe mais (talvez tenha sido apagada).</p>
+        <button class="btn btn-primario btn-largo" onClick={() => ir('', { substituir: true })}>Voltar para o início</button>
+      </Pagina>
+    )
   }
 
   return (
-    <Pagina titulo={editando ? `Editar: ${ROTULO_TIPO[tipo]}` : TITULOS[tipo]} voltarPara="">
+    <Pagina titulo={editando ? `Mudar: ${ROTULO_TIPO[tipo]}` : TITULOS[tipo]} voltarPara="">
       {!editando && (
-        <nav class="abas-tipo" aria-label="Tipo de lançamento">
+        <nav class="abas-tipo" aria-label="O que você quer anotar">
           {(['entrada', 'saida', 'retirada', 'reserva'] as Tipo[]).map((t) => (
             <button class={t === tipo ? 'ativa' : ''} aria-current={t === tipo ? 'page' : undefined}
               onClick={() => ir(`lancar/${t}`, { substituir: true })}>{ROTULO_TIPO[t]}</button>
@@ -141,9 +175,10 @@ export function Lancar({ tipo: tipoInicial, params, editarId }: { tipo?: string;
       )}
 
       {tipo === 'retirada' && (
-        <Nota>Separar o dinheiro da casa do dinheiro do salão ajuda a saber quanto o salão rende de verdade. Seu combinado: {brlCurto(e.config.salarioMensal)} por mês.</Nota>
+        <Nota>Separar o dinheiro da casa do dinheiro do salão ajuda a saber quanto o salão rende de verdade. {e.config.salarioMensal > 0 ? `Seu combinado: ${brlCurto(e.config.salarioMensal)} por mês.` : 'Você ainda não combinou um salário. Dá para combinar em Ajustes.'}</Nota>
       )}
-      {tipo === 'reserva' && <Nota tom="bom">Dinheiro guardado é fôlego para quando um imprevisto chegar (como o secador quebrar).</Nota>}
+      {tipo === 'reserva' && <Nota tom="bom">Dinheiro guardado é fôlego para quando um imprevisto chegar, como o secador quebrar.</Nota>}
+      {tipo === 'resgate' && <Nota>Use a reserva só para emergência do salão. Depois, volte a guardar aos poucos.</Nota>}
 
       <CampoValor id="valor" rotulo="Valor" valor={valor} aoMudar={setValor} autoFocus={!ehEntrada && tipo !== 'saida'} />
 
@@ -158,7 +193,7 @@ export function Lancar({ tipo: tipoInicial, params, editarId }: { tipo?: string;
             { valor: 'dinheiro', rotulo: 'Dinheiro' },
             { valor: 'debito', rotulo: 'Débito', extra: `${String(e.config.taxas.debito).replace('.', ',')}%` },
             { valor: 'credito', rotulo: 'Crédito', extra: `${String(e.config.taxas.credito).replace('.', ',')}%` },
-            { valor: 'fiado', rotulo: 'Vai pagar depois' },
+            { valor: 'fiado', rotulo: 'Fiado (paga depois)' },
           ]}
         />
       )}
@@ -168,7 +203,7 @@ export function Lancar({ tipo: tipoInicial, params, editarId }: { tipo?: string;
       )}
 
       {(forma === 'fiado' || (ehEntrada && cliente)) && (
-        <CampoTexto id="cliente" rotulo={forma === 'fiado' ? 'Quem vai pagar depois?' : 'Cliente (opcional)'} valor={cliente} aoMudar={setCliente}
+        <CampoTexto id="cliente" rotulo={forma === 'fiado' ? 'Quem ficou com o fiado?' : 'Cliente (opcional)'} valor={cliente} aoMudar={setCliente}
           placeholder="Primeiro nome ou apelido" dica="Só para você lembrar. Não precisa de sobrenome nem telefone." maxLength={30} />
       )}
 
@@ -196,7 +231,7 @@ export function Lancar({ tipo: tipoInicial, params, editarId }: { tipo?: string;
 
       <div class="rodape-acoes">
         <button class="btn btn-primario btn-largo" onClick={salvar}>{editando ? 'Salvar alteração' : 'Salvar'}</button>
-        {editando && <button class="btn btn-perigo btn-largo" onClick={apagar}>Apagar este lançamento</button>}
+        {editando && <button class="btn btn-perigo btn-largo" onClick={apagar}>Apagar esta anotação</button>}
       </div>
     </Pagina>
   )

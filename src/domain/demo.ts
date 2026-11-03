@@ -5,7 +5,7 @@ import type { Estado, Forma, Lancamento } from './types'
 
 /**
  * Dados 100% FICTÍCIOS para demonstração e testes (exigência do edital: protótipos testados com dados fictícios).
- * Inspirados no perfil genérico de um salão de uma profissional só; nenhum valor vem do parceiro real.
+ * Perfil genérico de salão de uma profissional só, inventado; não reproduz dados de nenhuma parceira real.
  */
 export function estadoDemo(mesAtual: string, diaAtual: number): Estado {
   const e = estadoInicial()
@@ -16,9 +16,11 @@ export function estadoDemo(mesAtual: string, diaAtual: number): Estado {
     metaReserva: 100_000,
     reservaPorAtendimento: 500,
     gastoMensalEstimado: 70_000,
-    valorDAS: 8_200,
-    // todos os DAS em dia, menos o do mês passado (que vence agora)
-    dasPagos: [-12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2].map((n) => somarMeses(mesAtual, n)),
+    valorDAS: 8_605,
+    ehMei: true,
+    nomeReserva: 'Fundo do secador',
+    // todos os DAS em dia; o do mês passado só depois do dia 20, quando a demonstração lança o pagamento
+    dasPagos: [-12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, ...(diaAtual >= 20 ? [-1] : [])].map((n) => somarMeses(mesAtual, n)),
   }
   let seq = 0
   // gerador determinístico: mesma demonstração sempre
@@ -42,8 +44,8 @@ export function estadoDemo(mesAtual: string, diaAtual: number): Estado {
     for (let dia = 1; dia <= ultimoDia; dia++) {
       const data = `${mes}-${String(dia).padStart(2, '0')}`
       const semana = new Date(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)) - 1, dia).getDay()
-      if (semana === 0 || semana === 1) continue // fecha domingo e segunda
-      const qtd = rnd() < 0.45 ? 2 : rnd() < 0.8 ? 3 : 1
+      if (semana === 0) continue // fecha domingo
+      const qtd = rnd() < 0.4 ? 1 : rnd() < 0.75 ? 2 : 3
       for (let i = 0; i < qtd; i++) {
         const servico = servicosMix[Math.floor(rnd() * servicosMix.length)]
         const forma = formas[Math.floor(rnd() * formas.length)]
@@ -55,10 +57,10 @@ export function estadoDemo(mesAtual: string, diaAtual: number): Estado {
     const noMes = (dia: number, l: Parameters<typeof add>[1]) => {
       if (m < 0 || dia <= diaAtual) add(`${mes}-${String(dia).padStart(2, '0')}`, l)
     }
-    noMes(2, { tipo: 'saida', valor: 32_000, categoria: 'produtos', descricao: 'Compra do mês (fictícia)', recebido: true })
+    noMes(6, { tipo: 'saida', valor: 32_000, categoria: 'produtos', descricao: 'Compra do mês (fictícia)', recebido: true })
     noMes(10, { tipo: 'saida', valor: 18_000, categoria: 'contas', descricao: 'Luz e internet (fictício)', recebido: true })
     noMes(12, { tipo: 'saida', valor: 4_500, categoria: 'limpeza', recebido: true })
-    noMes(20, { tipo: 'saida', valor: 8_200, categoria: 'das', descricao: 'DAS', recebido: true })
+    noMes(20, { tipo: 'saida', valor: 8_605, categoria: 'das', descricao: 'DAS', recebido: true })
     // o "salário" sai no fim do mês, depois de ver quanto sobrou
     noMes(28, { tipo: 'retirada', valor: 150_000, categoria: 'retirada', recebido: true })
   }

@@ -5,7 +5,18 @@ import type { Centavos, Config, Estado, Forma, Lancamento, Servico, Taxas } from
 export function taxaDaForma(valor: Centavos, forma: Forma | undefined, taxas: Taxas): Centavos {
   if (forma === 'debito') return Math.round((valor * taxas.debito) / 100)
   if (forma === 'credito') return Math.round((valor * taxas.credito) / 100)
+  if (forma === 'pix' && taxas.pix) return Math.round((valor * taxas.pix) / 100)
   return 0
+}
+
+/**
+ * Ao editar uma entrada: fiado que passou a pago entra no caixa de hoje; pago que continua pago mantém a data
+ * em que entrou; virou fiado de novo, perde a data.
+ */
+export function recebidoEmAoEditar(antes: Pick<Lancamento, 'recebido' | 'recebidoEm'>, agoraFiado: boolean, dataHoje: string): string | undefined {
+  if (agoraFiado) return undefined
+  if (!antes.recebido) return dataHoje
+  return antes.recebidoEm
 }
 
 export function liquido(l: Lancamento): Centavos {
@@ -105,14 +116,16 @@ export function custoMensal(estado: Estado, mesAtual: string): Centavos {
     .map((m) => resumoDoMes(estado.lancamentos, m))
     .filter((r) => r.saiu > 0)
     .map((r) => r.saiu + Math.max(r.praCasa, estado.config.salarioMensal))
-  if (totais.length === 0) return estado.config.gastoMensalEstimado + estado.config.salarioMensal
-  return Math.round(totais.reduce((a, b) => a + b, 0) / totais.length)
+  const estimativa = estado.config.gastoMensalEstimado + estado.config.salarioMensal
+  if (totais.length === 0) return estimativa
+  // conservador: um mês incompleto (começo de uso) não pode inflar o fôlego
+  return Math.max(estimativa, Math.round(totais.reduce((a, b) => a + b, 0) / totais.length))
 }
 
 /** Fôlego = quantos dias a reserva paga as contas se o salão parar de atender. */
 export function diasDeFolego(reserva: Centavos, custoDoMes: Centavos): number {
   if (custoDoMes <= 0 || reserva <= 0) return 0
-  return Math.floor(reserva / (custoDoMes / 30))
+  return Math.floor((reserva * 30) / custoDoMes)
 }
 
 // ---------- preços e margem ----------
@@ -184,8 +197,10 @@ export function simular(c: CenarioEse): CenarioEseResultado {
  * no primeiro atendimento e se ela voltar.
  */
 export function custoIndicacao(beneficio: Centavos, margemNovaCliente: Centavos, visitasNoAno: number) {
+  // visitas no ano contando a primeira (no mínimo 1)
+  const visitas = Math.max(1, Math.round(visitasNoAno))
   const ganhoPrimeiraVisita = margemNovaCliente - beneficio
-  const ganhoNoAno = margemNovaCliente * visitasNoAno - beneficio
+  const ganhoNoAno = margemNovaCliente * visitas - beneficio
   return { ganhoPrimeiraVisita, ganhoNoAno, valeAPena: ganhoNoAno > 0 }
 }
 
@@ -206,18 +221,35 @@ export function receitaBrutaMes(lancs: Lancamento[], mes: string): Centavos {
 
 export type SituacaoDAS = 'pago' | 'a-vencer' | 'vence-logo' | 'atrasado'
 
-/** O DAS da competência M vence no dia 20 do mês M+1. */
-export function situacaoDAS(config: Config, competencia: string, dataHoje: string): SituacaoDAS {
+/**
+ * O DAS da competência M vence no dia 20 do mês M+1. Conta como pago se foi marcado, ou se ela anotou
+ * um gasto "DAS do MEI" no mês do vencimento.
+ */
+export function situacaoDAS(config: Config, competencia: string, dataHoje: string, lancs: Lancamento[] = []): SituacaoDAS {
   if (config.dasPagos.includes(competencia)) return 'pago'
-  const vencimento = `${somarMeses(competencia, 1)}-${String(MEI.diaVencimentoDAS).padStart(2, '0')}`
+  const mesVenc = somarMeses(competencia, 1)
+  if (lancs.some((l) => l.tipo === 'saida' && l.categoria === 'das' && mesDe(l.data) === mesVenc)) return 'pago'
+  const vencimento = vencimentoDAS(competencia)
   const faltam = diasEntre(dataHoje, vencimento)
   if (faltam < 0) return 'atrasado'
   if (faltam <= 5) return 'vence-logo'
   return 'a-vencer'
 }
 
+/** Dia 20 do mês seguinte; se cair em sábado ou domingo, passa para a segunda-feira (dia útil seguinte). */
 export function vencimentoDAS(competencia: string): string {
-  return `${somarMeses(competencia, 1)}-${String(MEI.diaVencimentoDAS).padStart(2, '0')}`
+  const mes = somarMeses(competencia, 1)
+  const [y, m] = mes.split('-').map(Number)
+  const d = new Date(y, m - 1, MEI.diaVencimentoDAS)
+  const semana = d.getDay()
+  if (semana === 6) d.setDate(d.getDate() + 2)
+  if (semana === 0) d.setDate(d.getDate() + 1)
+  return `${mes}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/** Primeiro mês (AAAA-MM) com alguma anotação; antes disso o app não sabe nada sobre o DAS. */
+export function primeiroMesDeUso(lancs: Lancamento[], dataHoje: string): string {
+  return lancs.reduce((min, l) => (l.data < min ? l.data : min), dataHoje).slice(0, 7)
 }
 
 /** Média do que entrou por dia no mês. */

@@ -1,9 +1,9 @@
 import { useState } from 'preact/hooks'
 import { brlCurto } from '../domain/money'
 import type { Centavos } from '../domain/types'
-import { atualizarConfig, estado, salvarServico, trocarModo } from '../state/store'
+import { atualizarConfig, estado, prefs, salvarServico, trocarModo } from '../state/store'
 import { IcFolego } from '../ui/icons'
-import { CampoValor, Nota } from '../ui/kit'
+import { CampoValor, Escolha, Nota } from '../ui/kit'
 import { ir } from '../ui/router'
 
 export function BoasVindas() {
@@ -36,12 +36,14 @@ export function Comecar({ passo }: { passo: string }) {
   const [salario, setSalario] = useState<Centavos | null>(e.config.salarioMensal || null)
   const [meta, setMeta] = useState<Centavos | null>(e.config.metaReserva)
   const [porAt, setPorAt] = useState<Centavos | null>(e.config.reservaPorAtendimento)
+  const [ehMei, setEhMei] = useState<'sim' | 'nao' | undefined>(e.config.ehMei === undefined ? undefined : e.config.ehMei ? 'sim' : 'nao')
 
   function concluir() {
     atualizarConfig({
       salarioMensal: salario ?? 0,
       metaReserva: meta ?? 0,
       reservaPorAtendimento: porAt ?? 0,
+      ehMei: ehMei === undefined ? undefined : ehMei === 'sim',
       onboardingFeito: true,
     })
     ir('', { substituir: true })
@@ -56,6 +58,10 @@ export function Comecar({ passo }: { passo: string }) {
         {n === 1 && (
           <>
             <h1>Seus preços</h1>
+            <label class="interruptor">
+              <input type="checkbox" checked={prefs.value.letraGrande} onChange={(ev) => (prefs.value = { ...prefs.value, letraGrande: (ev.currentTarget as HTMLInputElement).checked })} />
+              <span>Letra maior</span>
+            </label>
             <p class="intro">Confira o preço de cada serviço. Desligue o que você não faz.</p>
             <ul class="lista">
               {e.servicos.map((s) => (
@@ -81,6 +87,9 @@ export function Comecar({ passo }: { passo: string }) {
             <p class="intro">Combine um valor fixo que o salão te paga por mês, como um salário. O resto fica no salão.</p>
             <CampoValor id="sal" rotulo="Meu salário por mês" valor={salario} aoMudar={setSalario} autoFocus />
             <Nota>Não sabe ainda? Deixe em branco e decida no fim do mês, olhando quanto sobrou.</Nota>
+            <Escolha<'sim' | 'nao'> rotulo="Você é MEI (tem CNPJ de microempreendedora)?" valor={ehMei} aoMudar={setEhMei}
+              opcoes={[{ valor: 'sim', rotulo: 'Sim' }, { valor: 'nao', rotulo: 'Não' }]} />
+            <p class="campo-dica">Se for, o app lembra do DAS e soma o relatório mensal. Dá para mudar depois em Ajustes.</p>
             <button class="btn btn-primario btn-largo" onClick={() => ir('comecar/3', { substituir: true })}>Continuar</button>
           </>
         )}

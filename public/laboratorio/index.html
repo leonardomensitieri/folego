@@ -1,0 +1,1432 @@
+<!doctype html>
+<!--
+  SEU SALÃO SOB CHOQUES · Simulação interativa · versão 2 (03/11/2026)
+  Laboratório de Decisões sob Choques · projeto de extensão.
+
+  Arquivo único e autocontido: HTML, CSS e JavaScript ficam todos aqui. Sem bibliotecas, sem fontes
+  ou scripts externos e sem nenhuma requisição de rede. O progresso fica só no sessionStorage desta
+  aba, quando o navegador permite; fechar a aba apaga tudo. Mora em app/public/laboratorio/index.html
+  e o app Fôlego fica em "../".
+
+  ===================================================================================================
+  1. RODADAS 1 A 3: IGUAIS À V1 (para a aplicação já feita, caminho D → C → C, continuar comparável)
+  ===================================================================================================
+  Mesmas alternativas, mesmos textos de situação e de consequência, mesmas dicas, mesmo estado inicial
+  (Margem 3 = Preservada, Caixa 2 = Apertado, Clientela 2 = Estável) e os MESMOS efeitos, com o mesmo
+  limite: novo nível = máx(1, mín(máximo, atual + efeito)). Escalas: Margem 1 a 3, Caixa 1 a 3,
+  Clientela 1 a 2. Efeitos em níveis ("0" = não mexe):
+
+    Rodada                     Alt.  Margem  Caixa  Clientela
+    1 Concorrente mais barato   A      -2      0       0
+                                B       0      0      -1
+                                C      -1      0       0
+                                D      -1      0       0
+                                E      -1      0       0
+    2 Dólar em alta             A       0      0      -1
+                                B      -1      0       0
+                                C       0      0       0
+                                D      -1      0       0
+                                E       0     -1       0
+    3 O secador quebra          A       0      0       0
+                                B       0     -1       0
+                                C       0      0       0
+                                D       0      0      -1
+                                E       0      0       0
+    4 Uma semana sem atender    A       0      0       0     (extra, novo)
+                                B       0     -1       0
+                                C       0     -1      -1
+                                D       0      0      -1
+                                E       0      0       0
+    5 Visita da fiscalização    A       0      0       0     (extra, novo)
+                                B       0     -1       0
+                                C       0      0       0
+                                D       0      0       0
+
+  ===================================================================================================
+  2. CORREÇÕES EM RELAÇÃO À V1 (nenhuma muda os números das rodadas 1 a 3)
+  ===================================================================================================
+  a) "Nenhum indicador mudou nesta escolha" aparecia também quando a escolha tinha custo, mas o
+     indicador já estava no nível mais baixo (o limite "engolia" o efeito em 28 dos 125 caminhos).
+     Agora a tela diz que o indicador já estava no mínimo e que a escolha também pesa nele.
+  b) O nível "Folgado" do Caixa nunca aparecia na tela, porque nenhuma alternativa aumenta o Caixa.
+     Agora todos os níveis de cada indicador aparecem em "Como funciona" e em "O que é cada
+     indicador?". A dica "Seu caixa está folgado" da rodada 3 continua inalcançável com os efeitos da
+     v1 (o Caixa começa Apertado e só pode cair até ali); foi mantida só por robustez.
+  c) Faltavam lang="pt-BR" e <title>; havia duas regras de body em conflito (o padding de uma vazava).
+  d) O visual dependia de um script carregado de outro domínio. Agora tudo é inline e funciona offline.
+  e) Acessibilidade: o foco se perdia a cada clique e nada era anunciado ao leitor de tela. Agora o
+     foco vai para o título da tela nova, uma região aria-live anuncia as mudanças de indicador, as
+     alternativas são botões de opção (radio) num fieldset e a letra mínima é 17px (a v1 usava 11px).
+  f) Rolar para o topo a cada toque desorientava ao marcar "o que mais pesou": agora só rola ao trocar
+     de tela.
+
+  ===================================================================================================
+  3. NOVIDADES DA V2
+  ===================================================================================================
+  - Tela "Como funciona" antes da rodada 1, com o significado de Margem, Caixa e Clientela.
+  - Escolha em dois passos (marcar e confirmar), para evitar toque acidental.
+  - "Trocar esta escolha" e "Voltar": volta à rodada anterior, restaura os indicadores e registra a
+    troca no histórico (o roteiro diz que a troca também revela como ela pensa).
+  - Cada consequência mostra de quanto cada indicador mudou e POR QUÊ, em linguagem simples, com a
+    conta em valores fictícios quando ajuda (a proprietária não tinha entendido por que a margem caiu).
+  - Rodadas 4 e 5 como extras opcionais (o roteiro de 70 min usa 3 rodadas).
+  - Resumo final com caminho, "o que mais pesou", variação dos indicadores, trocas, "Copiar resumo" e
+    "Baixar resumo (.txt)". Nada é enviado pela internet.
+  - Cartão "E na vida real?" com os 5 hábitos do Kit de Resiliência e o link para o Fôlego ("../").
+
+  ===================================================================================================
+  4. PREMISSAS DAS RODADAS 4 E 5 (valores fictícios do Mapa de Decisão)
+  ===================================================================================================
+  Escala herdada da v1: um atendimento deixa R$ 72 de sobra (R$ 90 de preço, R$ 18 de produto);
+  12 atendimentos por semana = R$ 864. Na rodada 3 da v1, R$ 150 (cerca de 2 atendimentos) não muda o
+  Caixa e R$ 600 (cerca de 8 atendimentos) derruba o Caixa em 1 nível. Daí as regras usadas:
+    P1. Perder de vez a sobra de uma semana (R$ 864, mais que os R$ 600) = Caixa -1.
+    P2. Dinheiro que entra depois, sem se perder (remarcação), = Caixa 0, como o parcelamento (3C).
+    P3. Gasto pequeno (organizar o descarte, consultar fontes) = 0, como o conserto (3A).
+    P4. Risco de a cliente não voltar ou ir para outra = Clientela -1, como 1B, 2A e 3D.
+    P5. Nenhuma alternativa sobe indicador, como na v1 (o motor aceita +1, mas não usa).
+  Rodada 4 (uma semana sem atender):
+    A  Avisar e remarcar: receita adiada, não perdida (há horários ociosos, segundo o Caderno). P2.
+       Custo fora dos números: tempo e energia. Mapa: "Clientela estável · Caixa apertado".
+    B  Profissional de confiança para urgentes: o dinheiro dos urgentes fica com a colega e as demais
+       esperam sem data: Caixa -1. O Mapa indicava "Margem reduzida"; foi trocado para Caixa porque
+       o que se perde é receita, não o que sobra de cada atendimento, e explicar "margem caiu" aqui
+       confundiria (é justamente a dúvida registrada na aplicação). Ver ponto em aberto no relatório.
+    C  Não fazer nada: semana perdida (P1, Caixa -1) e silêncio lido como desorganização (P4,
+       Clientela -1). Mapa: "Clientela em queda" e "perda de receita".
+    D  Política de sinal na volta: o Caixa fica protegido (quem pagou antes remarca sem devolução e o
+       sinal adianta parte do dinheiro), mas parte do público, sensível a preço, não gosta de pagar
+       antes (P4, Clientela -1). Mapa: "Caixa mais protegido" e "pode afastar clientes".
+    E  Mensagem padrão e lista de contatos: todas avisadas rápido, remarcam na volta (P2). 0.
+    Dicas ligam as rodadas: parcela do secador (3C) continua vencendo; rede de contatos (3E) ajuda.
+  Rodada 5 (visita da fiscalização sanitária, independente das anteriores):
+    A  Organizar o descarte e registrar: gasto pequeno (P3). 0. Ganho fora dos números.
+    B  Manter a rotina e agir só se cobrada: neste jogo, o pedido de ajuste vem e é resolvido às
+       pressas (compras sem comparar preço e horários remanejados), perto do custo de um secador novo:
+       Caixa -1. Mapa: "possível pressão depois".
+    C  Buscar orientação oficial (IVISA-Rio, prefeitura, Sebrae): custa tempo, não dinheiro. 0.
+    D  Perguntar a colegas: rápido e de graça agora; o risco de informação errada fica descrito. 0.
+    A tela avisa que nesta rodada o que mais está em jogo (saúde, ambiente, tranquilidade) não aparece
+    nos três indicadores, e que o cenário é educativo e não indica irregularidade.
+-->
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#6a2c5a">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="Simulação educativa: decisões de um salão de beleza diante de choques. Valores fictícios.">
+<title>Seu salão sob choques · Laboratório de Decisões</title>
+<style>
+  :root {
+    --bg: #faf6f2;
+    --sup: #ffffff;
+    --sup2: #f3ece6;
+    --tinta: #261c27;
+    --suave: #62566a;
+    --linha: #e6dcd5;
+    --borda: #9d8d97;
+    --pri: #6a2c5a;
+    --pri2: #8a3f76;
+    --pri-clara: #f3e6ef;
+    --bom: #1d6f47;
+    --bom-claro: #e3f2e9;
+    --ruim: #a73c26;
+    --ruim-claro: #fbe9e4;
+    --aviso: #8a5a00;
+    --aviso-claro: #fdf1d8;
+    --raio: 18px;
+    --raio-p: 12px;
+    --sombra: 0 1px 2px rgba(38, 28, 39, 0.06), 0 4px 14px rgba(38, 28, 39, 0.06);
+    --fonte: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color-scheme: light;
+    font-size: 17px;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--tinta);
+    font-family: var(--fonte);
+    font-size: 1rem;
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    overflow-wrap: break-word;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button, input, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  a { color: var(--pri); }
+  p { margin: 0; }
+  h2 { margin: 0; font-size: 1.5rem; line-height: 1.25; letter-spacing: -0.01em; }
+  h3 { margin: 0; font-size: 1.18rem; line-height: 1.3; }
+  h4 { margin: 0; font-size: 1.06rem; line-height: 1.3; }
+  ul, ol { margin: 0; }
+
+  :focus { outline: 3px solid var(--pri2); outline-offset: 3px; }
+  :focus:not(:focus-visible) { outline: none; }
+  :focus-visible { outline: 3px solid var(--pri2); outline-offset: 3px; }
+  [tabindex="-1"]:focus { outline: none; }
+
+  .sr-only {
+    position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+
+  .pagina { max-width: 560px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* ---------- topo ---------- */
+  .topo {
+    background: linear-gradient(160deg, var(--pri) 0%, var(--pri2) 100%);
+    color: #fff;
+    padding: calc(env(safe-area-inset-top) + 18px) 16px 16px;
+  }
+  .topo-sobre { opacity: 0.95; }
+  .topo h1 { margin: 2px 0 10px; font-size: 1.55rem; line-height: 1.2; letter-spacing: -0.01em; }
+  .aviso-fixo {
+    display: inline-block; background: rgba(255, 255, 255, 0.16); border-radius: 10px;
+    padding: 6px 10px; font-weight: 600;
+  }
+  .passos { list-style: none; margin: 14px 0 0; padding: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .passo { display: flex; }
+  .passo-num {
+    width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center;
+    font-weight: 800; border: 2px solid rgba(255, 255, 255, 0.8); color: #fff;
+  }
+  .passo.feita .passo-num { background: rgba(255, 255, 255, 0.22); }
+  .passo.atual .passo-num { background: #fff; color: var(--pri); border-color: #fff; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.35); }
+  .passo.extra .passo-num { border-style: dashed; }
+  .passo.primeira-extra { margin-left: 14px; }
+  .progresso-texto { margin-top: 8px; }
+
+  /* ---------- conteúdo ---------- */
+  main { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  main:focus { outline: none; }
+  .rotulo { color: var(--pri); font-weight: 800; letter-spacing: 0.01em; }
+  .sub { color: var(--tinta); }
+  .opcional { font-weight: 500; color: var(--suave); }
+  .cartao {
+    background: var(--sup); border: 1px solid var(--linha); border-radius: var(--raio);
+    box-shadow: var(--sombra); padding: 16px; display: flex; flex-direction: column; gap: 10px;
+  }
+  .selo-extra {
+    background: var(--pri-clara); color: var(--pri); border: 2px dashed var(--pri2);
+    border-radius: var(--raio-p); padding: 8px 12px; font-weight: 700;
+  }
+  .nota-recuperado { background: var(--bom-claro); color: var(--bom); border-radius: var(--raio-p); padding: 10px 14px; font-weight: 700; }
+  .lista { padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; }
+
+  /* ---------- indicadores ---------- */
+  .indicadores { gap: 14px; }
+  .ind { display: flex; flex-direction: column; gap: 6px; }
+  .ind-linha { display: flex; justify-content: space-between; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; }
+  .ind-nome { font-weight: 700; }
+  .ind-valor { font-weight: 800; }
+  .segs { display: flex; gap: 5px; }
+  .seg { flex: 1; height: 12px; border-radius: 6px; background: var(--linha); transition: background-color 0.35s ease; }
+  .seg.f-bom { background: var(--bom); }
+  .seg.f-aviso { background: var(--aviso); }
+  .seg.f-ruim { background: var(--ruim); }
+  .t-bom { color: var(--bom); }
+  .t-aviso { color: var(--aviso); }
+  .t-ruim { color: var(--ruim); }
+  .ind-delta { font-weight: 700; }
+
+  .como-ler { background: var(--sup); border: 1px solid var(--linha); border-radius: var(--raio); padding: 0 16px; }
+  .como-ler summary { padding: 13px 0; font-weight: 700; color: var(--pri); cursor: pointer; }
+  .defs { margin: 0 0 14px; display: flex; flex-direction: column; gap: 10px; }
+  .defs dt { font-weight: 800; }
+  .defs dd { margin: 0; }
+  .niveis { display: block; color: var(--suave); }
+
+  /* ---------- situação e dicas ---------- */
+  .info { padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }
+  .nota { color: var(--suave); }
+  .dica { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: var(--raio-p); }
+  .dica-alerta { background: var(--aviso-claro); color: #4f3300; border-left: 5px solid var(--aviso); }
+  .dica-info { background: var(--sup2); border-left: 5px solid var(--suave); }
+  .dica-icone {
+    flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+    font-weight: 900; color: #fff; background: var(--aviso); line-height: 1;
+  }
+  .dica-info .dica-icone { background: var(--suave); font-family: Georgia, "Times New Roman", serif; font-style: italic; }
+
+  /* ---------- alternativas ---------- */
+  fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+  legend { font-size: 1.18rem; font-weight: 800; padding: 0; margin: 0 0 10px; }
+  .nota-anterior { background: var(--sup2); border-radius: var(--raio-p); padding: 10px 12px; }
+  .opcao {
+    display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 12px 14px;
+    border: 2px solid var(--borda); border-radius: 14px; background: var(--sup); cursor: pointer;
+  }
+  .opcao input { flex: none; width: 24px; height: 24px; margin: 0; accent-color: var(--pri); }
+  .opcao input:focus { outline: none; }
+  .opcao:focus-within { outline: 3px solid var(--pri2); outline-offset: 2px; }
+  .opcao .letra {
+    flex: none; width: 38px; height: 38px; border-radius: 50%; background: var(--pri); color: #fff;
+    font-weight: 800; display: grid; place-items: center;
+  }
+  .opcao.marcada { border-color: var(--pri); background: var(--pri-clara); box-shadow: inset 0 0 0 1px var(--pri); }
+  .opcao-texto { flex: 1; min-width: 0; }
+  .aviso-escolha { color: var(--ruim); font-weight: 700; }
+  .aviso-escolha:empty { display: none; }
+
+  /* ---------- botões ---------- */
+  .btn {
+    min-height: 52px; padding: 10px 18px; border-radius: var(--raio-p); border: 2px solid var(--pri);
+    font-weight: 800; font-size: 1rem; line-height: 1.25; display: inline-flex; align-items: center;
+    justify-content: center; gap: 6px; text-align: center; text-decoration: none;
+  }
+  .btn-primario { background: var(--pri); color: #fff; }
+  .btn-secundario { background: var(--sup); color: var(--pri); }
+  .btn-perigo { background: var(--ruim); border-color: var(--ruim); color: #fff; }
+  .btn-largo { width: 100%; }
+  .btn[aria-disabled="true"] { opacity: 0.6; }
+  .btn:active { transform: translateY(1px); }
+  .btn-link {
+    background: none; border: 0; color: var(--suave); text-decoration: underline; min-height: 48px;
+    padding: 8px 6px; font-weight: 600; font-size: 1rem; align-self: center;
+  }
+  .acoes-col { display: flex; flex-direction: column; gap: 10px; }
+
+  /* ---------- critérios ---------- */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    min-height: 48px; padding: 8px 16px; border-radius: 999px; border: 1.5px solid var(--borda);
+    background: var(--sup); font-weight: 600; font-size: 1rem; line-height: 1.2; text-align: left;
+  }
+  .chip[aria-pressed="true"] { background: var(--pri); border-color: var(--pri); color: #fff; }
+  .chip[aria-pressed="true"]::before { content: "\2713\00a0"; font-weight: 800; }
+
+  /* ---------- consequência ---------- */
+  .escolhido { border: 2px solid var(--pri2); animation: surgir 0.3s ease both; }
+  .mudancas { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .mud {
+    border-left: 5px solid var(--ruim); background: var(--ruim-claro);
+    border-radius: 0 var(--raio-p) var(--raio-p) 0; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px;
+  }
+  .mud.sobe { border-left-color: var(--bom); background: var(--bom-claro); }
+  .mud-trava { font-style: italic; }
+  .qto { white-space: nowrap; font-weight: 700; }
+  .marca { font-size: 0.95em; }
+  .nenhum { background: var(--sup2); border-radius: var(--raio-p); padding: 10px 12px; }
+  .conta { background: var(--sup2); border-radius: var(--raio-p); padding: 10px 12px; }
+  .emtroca { border-left: 5px solid var(--bom); padding-left: 10px; }
+  .fora { border-left: 5px solid var(--linha); padding-left: 10px; }
+
+  /* ---------- resumo ---------- */
+  .caminho { font-size: 1.12rem; }
+  .caminho strong { color: var(--pri); letter-spacing: 0.04em; }
+  .linha-tempo { list-style: none; padding: 0; display: flex; flex-direction: column; }
+  .etapa { display: flex; gap: 12px; position: relative; padding-bottom: 20px; }
+  .etapa:last-child { padding-bottom: 0; }
+  .etapa:not(:last-child)::before {
+    content: ""; position: absolute; left: 17px; top: 42px; bottom: 4px; width: 3px;
+    background: var(--pri-clara); border-radius: 2px;
+  }
+  .etapa-num {
+    flex: none; width: 38px; height: 38px; border-radius: 50%; background: var(--pri); color: #fff;
+    font-weight: 800; display: grid; place-items: center;
+  }
+  .etapa.extra .etapa-num { background: var(--sup); color: var(--pri); border: 2px dashed var(--pri); }
+  .etapa-corpo { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .etapa-tag { color: var(--suave); }
+  .letra-mini {
+    display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 8px;
+    background: var(--pri); color: #fff; font-weight: 800; margin-right: 6px; vertical-align: middle;
+  }
+  .etapa-troca { background: var(--pri-clara); border-radius: var(--raio-p); padding: 8px 10px; }
+  .trocas-lista { padding-left: 1.3em; display: flex; flex-direction: column; gap: 6px; }
+  .total-linha { display: flex; flex-direction: column; gap: 6px; padding-left: 0; list-style: none; }
+  .status { font-weight: 700; }
+  .status:empty { display: none; }
+  textarea {
+    width: 100%; min-height: 220px; border: 1.5px solid var(--borda); border-radius: var(--raio-p);
+    padding: 10px; font-size: 1rem; line-height: 1.4; background: var(--bg); resize: vertical;
+  }
+  .vida-real { background: linear-gradient(180deg, var(--pri-clara) 0%, var(--sup) 60%); border-color: #e2cfdc; }
+  .habitos { padding-left: 1.3em; display: flex; flex-direction: column; gap: 8px; }
+  .recomeco { display: flex; flex-direction: column; gap: 10px; }
+  .recomeco .cartao { border: 2px solid var(--ruim); }
+
+  /* ---------- rodapé ---------- */
+  .rodape { padding: 8px 16px calc(env(safe-area-inset-bottom) + 28px); color: var(--suave); display: flex; flex-direction: column; gap: 6px; }
+  .rodape strong { color: var(--tinta); }
+
+  @keyframes surgir { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  @media (min-width: 561px) { .topo { border-radius: 0 0 var(--raio) var(--raio); } }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+    .btn:active { transform: none; }
+  }
+  @media print {
+    body { background: #fff; }
+    .topo { background: none; color: #000; }
+    .btn, .btn-link, .recomeco, .como-ler, #copia-manual { display: none !important; }
+    .cartao { box-shadow: none; break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="pagina">
+  <header class="topo">
+    <p class="topo-sobre">Laboratório de Decisões sob Choques</p>
+    <h1>Seu salão sob choques</h1>
+    <p class="aviso-fixo">Valores fictícios. Educativo: não é consultoria financeira.</p>
+    <div id="progresso"></div>
+  </header>
+
+  <main id="app" tabindex="-1">
+    <noscript><p>Esta simulação precisa do JavaScript ligado no navegador.</p></noscript>
+  </main>
+
+  <footer class="rodape">
+    <p><strong>Valores fictícios. Educativo: não é consultoria financeira.</strong></p>
+    <p>Material educativo do Laboratório de Decisões sob Choques (projeto de extensão). Não há resposta certa e não garante resultado.</p>
+    <p>Nada é enviado pela internet: o progresso fica só nesta aba do navegador.</p>
+  </footer>
+</div>
+<div id="anuncio" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+<script>
+'use strict';
+
+/* =====================================================================
+   1. DADOS
+   ===================================================================== */
+var VERSAO = 2;
+var CHAVE_SESSAO = 'seu-salao-sob-choques-v2';
+var PRINCIPAIS = 3; /* rodadas do roteiro de 70 min; as demais são extras */
+var INICIAL = { m: 3, c: 2, k: 2 };
+var MAX = { m: 3, c: 3, k: 2 };
+var CHAVES = ['m', 'c', 'k'];
+var NOME = { m: 'Margem', c: 'Caixa', k: 'Clientela' };
+var NA = { m: 'na margem', c: 'no caixa', k: 'na clientela' };
+var NIVEL = {
+  m: { 3: 'Preservada', 2: 'Reduzida', 1: 'Muito reduzida' },
+  c: { 3: 'Folgado', 2: 'Apertado', 1: 'Crítico' },
+  k: { 2: 'Estável', 1: 'Em queda' }
+};
+var DEFINICAO = {
+  m: 'Quanto sobra de cada atendimento depois de pagar o produto usado.',
+  c: 'O dinheiro disponível para pagar as contas sem precisar se endividar.',
+  k: 'Quantas clientes vêm ao salão e quantas voltam.'
+};
+/* Mesmos critérios da v1, na mesma ordem. */
+var CRITERIOS = ['Margem', 'Caixa', 'Clientela', 'Posicionamento', 'Voltar atrás se der errado', 'Esforço e tempo', 'Impacto em outros'];
+var TELAS = ['intro', 'escolher', 'resultado', 'resumo'];
+
+function alerta(t) { return { tipo: 'alerta', texto: t }; }
+function info(t) { return { tipo: 'info', texto: t }; }
+
+/* Campos de cada alternativa:
+   k letra · t texto · d efeito em níveis · r consequência (rodadas 1 a 3: texto da v1)
+   porque  {m|c|k}: por que aquele indicador mudou
+   porqueNada: por que nenhum indicador mudou
+   conta: exemplo em valores fictícios · emTroca: o que a escolha protegeu · fora: o que não aparece nos números */
+var RODADAS = [
+  {
+    tag: 'Comercial', titulo: 'Concorrente mais barato',
+    sit: 'Janeiro, movimento fraco. Um salão da região baixou os preços e duas clientes comentaram.',
+    dicas: function () { return []; },
+    opcoes: [
+      { k: 'A', t: 'Igualar o preço do concorrente', d: { m: -2 },
+        r: 'Retém clientes sensíveis a preço, mas o desconto é difícil de desfazer. Com 15% de desconto, a contribuição por atendimento cai cerca de 19%.',
+        porque: { m: 'Você baixou o preço e o produto custa o mesmo. O desconto sai inteiro do que sobra em cada atendimento.' },
+        conta: 'um atendimento de R$ 90 com R$ 18 de produto deixa R$ 72. Com 15% de desconto, o preço vai a R$ 76,50 e sobram R$ 58,50, cerca de 19% a menos. Para sobrar o mesmo na semana, seriam precisos uns 15 atendimentos em vez de 12.',
+        emTroca: 'a clientela fica estável, porque quem decide pelo preço não tem motivo para trocar de salão.',
+        fora: 'Depois, voltar ao preço antigo é difícil: a cliente se acostuma com o desconto.' },
+      { k: 'B', t: 'Manter o preço e reforçar o atendimento exclusivo', d: { k: -1 },
+        r: 'Preserva a margem e o posicionamento, mas pode perder mais clientes no curto prazo.',
+        porque: { k: 'Seu preço ficou acima do concorrente, e parte das clientes decide pelo preço. Algumas podem experimentar o outro salão.' },
+        emTroca: 'a margem fica preservada, porque o preço e o custo do produto não mudaram.',
+        fora: 'Seu atendimento exclusivo e de qualidade continua sendo o motivo para escolher você.' },
+      { k: 'C', t: 'Criar pacotes (ex.: corte + sobrancelha)', d: { m: -1 },
+        r: 'Aumenta o valor por visita sem baixar o preço unitário, mas exige organizar a agenda.',
+        porque: { m: 'Para valer a pena para a cliente, o pacote sai um pouco mais barato do que os serviços separados. O produto custa o mesmo, então cada serviço do pacote deixa um pouco menos de sobra.' },
+        emTroca: 'cada visita rende mais no total, o preço de cada serviço fora do pacote não muda e a clientela fica estável.',
+        fora: 'Exige organizar a agenda e explicar bem o pacote às clientes.' },
+      { k: 'D', t: 'Dar benefício a quem indicar', d: { m: -1 },
+        r: 'Fortalece o canal que já funciona. O custo do benefício e o resultado são incertos.',
+        porque: { m: 'O benefício para quem indica sai do que sobra para você. O preço é o mesmo e o produto custa o mesmo, então, a cada benefício dado, sobra menos.' },
+        conta: 'um atendimento de R$ 90 com R$ 18 de produto deixa R$ 72. Com um benefício de R$ 10 para quem indicou, aquele atendimento deixa R$ 62.',
+        emTroca: 'a clientela fica estável, porque a indicação, que já é seu principal canal, ganha força.',
+        fora: 'O resultado é incerto: não dá para saber de antemão quantas clientes novas o benefício traz.' },
+      { k: 'E', t: 'Preço menor só em horários ociosos', d: { m: -1 },
+        r: 'Ocupa horários vazios, mas pode ensinar o cliente a esperar promoção.',
+        porque: { m: 'Nos horários com desconto, o preço é menor e o produto custa o mesmo. Sobra menos em cada um desses atendimentos.' },
+        emTroca: 'a clientela fica estável e horários que ficariam vazios passam a ser ocupados.',
+        fora: 'Clientes que viriam no preço cheio podem passar a esperar o horário com desconto.' }
+    ]
+  },
+  {
+    tag: 'Cambial', titulo: 'Dólar em alta',
+    sit: 'O fornecedor avisou: descolorantes e máscaras ficaram mais caros.',
+    dicas: function (ind) {
+      var h = [];
+      if (ind.m === 1) h.push(alerta('Sua margem já está muito baixa: absorver o aumento será difícil.'));
+      if (ind.k === 1) h.push(alerta('Sua clientela já está em queda: repassar o aumento pode piorar.'));
+      return h;
+    },
+    opcoes: [
+      { k: 'A', t: 'Repassar o aumento no preço', d: { k: -1 },
+        r: 'Preserva a margem se o cliente aceitar. Clientela sensível a preço pode reagir.',
+        porque: { k: 'O preço subiu logo depois de um concorrente mais barato aparecer, e seu público é sensível a preço. Algumas clientes podem reagir.' },
+        emTroca: 'a margem fica preservada, porque o aumento do produto foi todo para o preço.' },
+      { k: 'B', t: 'Repassar só uma parte', d: { m: -1 },
+        r: 'Reação menor do cliente, com margem menor.',
+        porque: { m: 'O produto ficou mais caro e só parte do aumento foi para o preço. O resto sai do que sobra em cada atendimento.' },
+        emTroca: 'a clientela fica estável, porque o aumento no preço foi pequeno.' },
+      { k: 'C', t: 'Trocar de marca ou produto', d: {},
+        r: 'Reduz o custo, com risco de mudar o resultado do serviço e a confiança do cliente.',
+        porqueNada: 'O produto mais barato segura o que sobra de cada atendimento, sem mexer no preço.',
+        fora: 'O resultado do serviço e a confiança da cliente podem mudar. Esse risco não aparece nos números.' },
+      { k: 'D', t: 'Cotar um segundo fornecedor e manter dois ativos', d: { m: -1 },
+        r: 'Menos dependência de um fornecedor e mais poder de negociar, ao custo de tempo.',
+        porque: { m: 'Enquanto cota e organiza os dois fornecedores, você paga o preço mais alto sem repassar. E, dividindo as compras, perde desconto por volume. Sobra menos em cada atendimento.' },
+        emTroca: 'a clientela fica estável, porque o preço para a cliente não mudou.',
+        fora: 'Você passa a depender menos de um fornecedor só e ganha poder de negociar. Custa tempo de pesquisa.' },
+      { k: 'E', t: 'Antecipar uma compra maior (estoque)', d: { c: -1 },
+        r: 'Fixa o preço atual por mais tempo, mas prende dinheiro e pode haver perda por validade.',
+        porque: { c: 'O dinheiro de uma compra grande sai todo agora e fica parado na prateleira, em vez de ficar disponível para as contas.' },
+        emTroca: 'a margem fica preservada, porque você garante o preço de hoje contra novas altas.',
+        fora: 'Produto parado pode vencer antes de ser usado.' }
+    ]
+  },
+  {
+    tag: 'Operacional e financeiro', titulo: 'O secador quebra',
+    sit: 'Em uma semana cheia, o secador parou de funcionar.',
+    dicas: function (ind) {
+      if (ind.c === 1) return [alerta('Seu caixa está crítico: qualquer gasto grande vira dívida.')];
+      if (ind.c === 2) return [alerta('Seu caixa está apertado e não há reserva de emergência.')];
+      return [info('Seu caixa está folgado, o que dá mais opções.')]; /* inalcançável com os efeitos da v1 */
+    },
+    opcoes: [
+      { k: 'A', t: 'Consertar o equipamento', d: {},
+        r: 'Menor gasto agora, com risco de nova quebra. Conserto de R$ 150 equivale a cerca de 2 atendimentos.',
+        porqueNada: 'O conserto de R$ 150 equivale a cerca de 2 atendimentos: um gasto que o caixa aguenta sem mudar de nível.',
+        fora: 'O equipamento pode quebrar de novo, e aí o gasto se repete.' },
+      { k: 'B', t: 'Comprar um novo com o dinheiro disponível', d: { c: -1 },
+        r: 'Resolve por mais tempo, mas consome o caixa. R$ 600 equivalem a cerca de 8 atendimentos.',
+        porque: { c: 'Os R$ 600 saem de uma vez: é a sobra de cerca de 8 atendimentos. Sem reserva, isso aperta as contas do mês.' },
+        emTroca: 'o problema fica resolvido por mais tempo, sem dívida.' },
+      { k: 'C', t: 'Comprar parcelado ou com dívida de curto prazo', d: {},
+        r: 'Resolve agora, com compromisso e custo financeiro nos meses seguintes.',
+        porqueNada: 'O dinheiro sai aos poucos, nas parcelas dos próximos meses, e não de uma vez agora.',
+        fora: 'A dívida tem custo: juros e parcelas que vencem mesmo num mês fraco. Esse peso não aparece agora, mas continua lá.' },
+      { k: 'D', t: 'Reorganizar a agenda e adiar o conserto', d: { k: -1 },
+        r: 'Mantém atividade parcial, mas atrasa a solução e arrisca desagradar clientes.',
+        porque: { k: 'Alguns serviços ficam para depois, e parte das clientes pode se desagradar com a remarcação.' },
+        emTroca: 'o caixa não muda, porque você não gasta nada agora.',
+        fora: 'A receita da semana fica menor e a solução atrasa.' },
+      { k: 'E', t: 'Emprestar ou alugar um secador por um tempo', d: {},
+        r: 'Ganha tempo para decidir com mais informação, se houver rede de contatos.',
+        porqueNada: 'Emprestar ou alugar custa pouco e resolve por um tempo.',
+        fora: 'Depende de ter a quem pedir. Você ganha tempo para decidir com mais informação.' }
+    ]
+  },
+  {
+    extra: true,
+    tag: 'Operacional e comportamental', titulo: 'Uma semana sem atender',
+    sit: 'Um problema de saúde na família exige que você fique sete dias sem atender. Não há ninguém que possa assumir o salão.',
+    info: [
+      'Se você parar, o salão para: é você quem atende e quem decide tudo.',
+      'A agenda fica no WhatsApp e no celular.',
+      'Parte das clientes paga antes e parte paga no dia.',
+      'Uma semana normal tem cerca de 12 atendimentos, que deixam uns R$ 864 de sobra (valores fictícios).'
+    ],
+    dicas: function (ind, esc) {
+      var h = [];
+      if (ind.c === 1) h.push(alerta('Seu caixa está crítico: uma semana sem receita pesa ainda mais.'));
+      else if (ind.c === 2) h.push(alerta('Seu caixa está apertado e não há reserva: uma semana parada é sentida logo.'));
+      if (esc[2] === 'C') h.push(alerta('Você comprou o secador parcelado: as parcelas continuam vencendo, mesmo sem atender.'));
+      if (esc[2] === 'E') h.push(info('Na rodada 3 você contou com a sua rede de contatos. Ela pode ajudar de novo agora.'));
+      if (ind.k === 1) h.push(alerta('Sua clientela já está em queda: sumir sem avisar pode afastar mais gente.'));
+      return h;
+    },
+    opcoes: [
+      { k: 'A', t: 'Avisar todas as clientes e remarcar os atendimentos', d: {},
+        r: 'Mantém o vínculo, com remarcações concentradas depois. Custa tempo de comunicação num momento difícil.',
+        porqueNada: 'A receita da semana foi adiada, não perdida: como sua agenda tem horários livres, as clientes remarcaram nas semanas seguintes. E ninguém ficou sem resposta.',
+        fora: 'Custou tempo e energia num momento difícil, e as semanas da volta ficam mais cheias.' },
+      { k: 'B', t: 'Indicar uma profissional de confiança para casos urgentes', d: { c: -1 },
+        r: 'As clientes com urgência vão para uma colega de confiança e as outras esperam a sua volta. Evita perder clientes, mas depende de outra pessoa.',
+        porque: { c: 'O dinheiro dos atendimentos urgentes fica com a colega e não volta para você. As outras clientes esperam, mas, sem data marcada, demoram a voltar. Pouco entra no caixa.' },
+        emTroca: 'a clientela fica estável, porque quem tinha urgência foi atendida.',
+        fora: 'Sua reputação passa a depender do trabalho de outra pessoa. Se o atendimento não for equivalente, você sente depois.' },
+      { k: 'C', t: 'Não fazer nada e retomar depois', d: { c: -1, k: -1 },
+        r: 'Poupa esforço agora, mas o silêncio é lido como desorganização. Perde a receita da semana e as clientes mais sensíveis.',
+        porque: {
+          c: 'A semana inteira de atendimentos se perdeu: cerca de 12 atendimentos, ou R$ 864 de sobra. É mais do que um secador novo (R$ 600).',
+          k: 'Sem notícia, parte das clientes entende o silêncio como desorganização e procura outro salão.'
+        },
+        emTroca: 'você poupa energia num momento difícil.' },
+      { k: 'D', t: 'Ajustar a política de sinal e agendamento antecipado após o retorno', d: { k: -1 },
+        r: 'Reduz o impacto de ausências futuras, mas pode afastar clientes que não gostam de pagar antes.',
+        porque: { k: 'Parte do seu público, sensível a preço, não gosta de pagar antes e pode procurar outro lugar.' },
+        emTroca: 'o caixa fica protegido: quem já tinha pago antes remarcou sem pedir o dinheiro de volta e, daqui em diante, o sinal faz parte do dinheiro entrar antes do atendimento.',
+        fora: 'Numa próxima ausência, o prejuízo será menor.' },
+      { k: 'E', t: 'Criar uma mensagem padrão para imprevistos e uma lista de contatos prioritários', d: {},
+        r: 'Agiliza o aviso agora e nas próximas emergências. O ideal é preparar com calma, antes de precisar.',
+        porqueNada: 'Com uma mensagem pronta e a lista de contatos prioritários, todas as clientes foram avisadas rápido e remarcaram na volta.',
+        fora: 'Custou um tempo de preparo. Da próxima vez, a mensagem e a lista já estarão prontas.' }
+    ]
+  },
+  {
+    extra: true,
+    tag: 'Socioambiental e regulatório', titulo: 'Visita da fiscalização sanitária',
+    sit: 'Um fiscal da vigilância sanitária visita o salão, numa inspeção de rotina, para verificar as condições de funcionamento, incluindo o descarte de resíduos. Visitas assim podem voltar a acontecer.',
+    info: [
+      'Você já se adaptou a exigências sanitárias antes.',
+      'Hoje, só as lâminas são separadas do lixo comum.',
+      'O salão funciona em casa.'
+    ],
+    destaque: 'Nesta rodada, o que mais está em jogo não aparece em Margem, Caixa e Clientela: é a saúde, o ambiente e a sua tranquilidade.',
+    nota: 'Cenário educativo: não indica irregularidade. Dúvidas sobre licenças, uso de imóvel residencial e resíduos devem ser levadas ao IVISA-Rio, à prefeitura ou ao Sebrae.',
+    dicas: function () { return [info('Esta situação não depende das rodadas anteriores: vale para qualquer caminho.')]; },
+    opcoes: [
+      { k: 'A', t: 'Organizar o descarte de resíduos e registrar como é feito', d: {},
+        r: 'Mais tranquilidade numa fiscalização e menos risco para a saúde e o ambiente. Custa tempo e um pouco de dinheiro para organizar.',
+        porqueNada: 'Organizar custa algumas horas e pouco dinheiro, como sacos e recipientes identificados: um gasto pequeno, que não muda o nível do caixa.',
+        fora: 'Você ganha tranquilidade e protege a si mesma, as clientes e o ambiente. O registro por escrito mostra o que já está em ordem.' },
+      { k: 'B', t: 'Manter a rotina atual e agir só se for cobrada', d: { c: -1 },
+        r: 'Menos esforço agora, com risco de ser surpreendida e de ter de resolver tudo com pressa depois.',
+        porque: { c: 'Agir só quando for cobrada significa resolver com pressa. Neste jogo, o pedido de ajuste vem: você compra o que falta sem comparar preços e remaneja horários de atendimento.' },
+        emTroca: 'você poupa esforço agora.',
+        fora: 'Fica a dúvida sobre o que está certo e o que não está.' },
+      { k: 'C', t: 'Buscar orientação em fontes oficiais (IVISA-Rio, prefeitura, Sebrae)', d: {},
+        r: 'Reduz incertezas e evita decidir com base em boatos. Exige tempo para consultar.',
+        porqueNada: 'Consultar custa tempo, não dinheiro.',
+        fora: 'Você passa a saber o que vale de verdade para o seu caso e evita gastar com o que não precisa.' },
+      { k: 'D', t: 'Perguntar a outros profissionais do setor', d: {},
+        r: 'Respostas rápidas, mas nem sempre corretas ou atualizadas. Cuidado com o "todo mundo faz assim".',
+        porqueNada: 'Perguntar a colegas é rápido e não custa nada agora.',
+        fora: 'Se a informação estiver desatualizada, você pode gastar com o que não precisa ou deixar de fazer o que precisa. Esse custo aparece depois.' }
+    ]
+  }
+];
+
+var HABITOS = [
+  ['Separar o dinheiro da casa do dinheiro do salão.', 'Sem isso, fica difícil saber quanto há de verdade para um imprevisto, como o secador da rodada 3.'],
+  ['Anotar entradas e saídas.', 'Cinco minutos por dia. É com esses números que você decide se pode baixar um preço ou dar um benefício, como na rodada 1.'],
+  ['Formar uma reserva, mesmo pequena.', 'Um "Fundo do secador" faz um equipamento quebrado ou uma semana parada pesar menos.'],
+  ['Ter mais de um fornecedor.', 'Compare preços e teste produtos em pequena quantidade antes de trocar de vez, como na rodada 2.'],
+  ['Manter o vínculo com as clientes.', 'Sua principal vantagem é a confiança, não o preço. Avise, remarque e peça indicações.']
+];
+
+/* =====================================================================
+   2. LÓGICA (sem DOM; testável à parte)
+   ===================================================================== */
+function copia(o) { return JSON.parse(JSON.stringify(o)); }
+
+function opcao(r, k) {
+  var R = RODADAS[r];
+  if (!R) return null;
+  for (var i = 0; i < R.opcoes.length; i++) if (R.opcoes[i].k === k) return R.opcoes[i];
+  return null;
+}
+
+/* Mesma regra da v1: cada efeito fica preso entre 1 e o máximo do indicador. */
+function aplicarEfeito(antes, d) {
+  var depois = copia(antes);
+  CHAVES.forEach(function (x) {
+    if (d[x]) depois[x] = Math.max(1, Math.min(MAX[x], antes[x] + d[x]));
+  });
+  return depois;
+}
+
+function novoEstado() {
+  return { v: VERSAO, tela: 'intro', r: 0, ind: copia(INICIAL), feitas: [], sel: null, anteriores: {}, trocas: [], inicio: null };
+}
+
+function escolhasFeitas(S) {
+  var e = {};
+  S.feitas.forEach(function (f) { e[f.r] = f.k; });
+  return e;
+}
+
+function escolhaAnterior(S, r) {
+  var a = S.anteriores[r];
+  return a ? a.k : null;
+}
+
+/* Recebe o estado e uma ação; devolve um estado novo (ou o mesmo, se a ação não vale ali). */
+function agir(S0, tipo, dado, agora) {
+  var S = copia(S0), f, o;
+  if (typeof agora !== 'number') agora = Date.now();
+
+  if (tipo === 'comecar') {
+    if (S.tela !== 'intro') return S0;
+    S.tela = 'escolher'; S.r = 0; S.sel = escolhaAnterior(S, 0);
+    if (!S.inicio) S.inicio = agora;
+  } else if (tipo === 'selecionar') {
+    if (S.tela !== 'escolher' || !opcao(S.r, dado)) return S0;
+    S.sel = dado;
+  } else if (tipo === 'confirmar') {
+    if (S.tela !== 'escolher') return S0;
+    o = opcao(S.r, S.sel);
+    if (!o) return S0;
+    var antes = copia(S.ind), crit = null, ant = S.anteriores[S.r];
+    if (ant) {
+      S.trocas.push({ r: S.r, de: ant.k, deCrit: ant.crit, para: o.k, tipo: ant.k === o.k ? 'manteve' : 'trocou', em: agora });
+      if (ant.k === o.k) crit = ant.crit;
+      delete S.anteriores[S.r];
+    }
+    S.feitas.push({ r: S.r, k: o.k, crit: crit, antes: antes, depois: aplicarEfeito(antes, o.d), em: agora });
+    S.ind = copia(S.feitas[S.feitas.length - 1].depois);
+    S.sel = null; S.tela = 'resultado';
+  } else if (tipo === 'criterio') {
+    if (S.tela !== 'resultado' || CRITERIOS.indexOf(dado) < 0) return S0;
+    f = S.feitas[S.r];
+    f.crit = f.crit === dado ? null : dado;
+  } else if (tipo === 'trocar') {
+    if (S.tela !== 'resultado') return S0;
+    f = S.feitas.pop();
+    S.ind = copia(f.antes);
+    S.anteriores[S.r] = { k: f.k, crit: f.crit };
+    S.sel = f.k; S.tela = 'escolher';
+  } else if (tipo === 'voltar') {
+    if (S.tela === 'escolher') {
+      S.sel = null;
+      if (S.r === 0) S.tela = 'intro';
+      else { S.r -= 1; S.tela = 'resultado'; }
+    } else if (S.tela === 'resumo') {
+      S.r = S.feitas.length - 1; S.tela = 'resultado';
+    } else return S0;
+  } else if (tipo === 'proxima') {
+    if (S.tela !== 'resultado') return S0;
+    if (S.r + 1 >= RODADAS.length) S.tela = 'resumo';
+    else { S.r += 1; S.tela = 'escolher'; S.sel = escolhaAnterior(S, S.r); }
+  } else if (tipo === 'resumo') {
+    if (S.tela !== 'resultado' || S.feitas.length < PRINCIPAIS) return S0;
+    S.tela = 'resumo';
+  } else if (tipo === 'extras') {
+    if (S.tela === 'resumo' && S.feitas.length >= PRINCIPAIS && S.feitas.length < RODADAS.length) {
+      S.r = S.feitas.length; S.tela = 'escolher'; S.sel = escolhaAnterior(S, S.r);
+    } else if (S.tela === 'resultado' && S.r === PRINCIPAIS - 1) {
+      S.r += 1; S.tela = 'escolher'; S.sel = escolhaAnterior(S, S.r);
+    } else return S0;
+  } else if (tipo === 'recomecar') {
+    return novoEstado();
+  } else {
+    return S0;
+  }
+  return S;
+}
+
+function mesmoInd(a, b) {
+  return !!a && CHAVES.every(function (x) { return a[x] === b[x]; });
+}
+
+/* Confere um estado vindo do sessionStorage antes de usá-lo. */
+function estadoValido(S) {
+  try {
+    if (!S || S.v !== VERSAO || TELAS.indexOf(S.tela) < 0) return false;
+    if (!Array.isArray(S.feitas) || !Array.isArray(S.trocas) || !S.anteriores || typeof S.anteriores !== 'object') return false;
+    if (typeof S.r !== 'number' || S.r < 0 || S.r >= RODADAS.length || Math.floor(S.r) !== S.r) return false;
+    var n = S.feitas.length;
+    if (n > RODADAS.length) return false;
+    if (S.tela === 'intro' && n !== 0) return false;
+    if (S.tela === 'escolher' && n !== S.r) return false;
+    if (S.tela === 'resultado' && n !== S.r + 1) return false;
+    if (S.tela === 'resumo' && n < PRINCIPAIS) return false;
+    var atual = copia(INICIAL);
+    for (var i = 0; i < n; i++) {
+      var f = S.feitas[i], o = f ? opcao(i, f.k) : null;
+      if (!o || f.r !== i) return false;
+      if (f.crit !== null && CRITERIOS.indexOf(f.crit) < 0) return false;
+      if (!mesmoInd(f.antes, atual)) return false;
+      atual = aplicarEfeito(atual, o.d);
+      if (!mesmoInd(f.depois, atual)) return false;
+    }
+    if (!mesmoInd(S.ind, atual)) return false;
+    if (S.sel !== null && (S.tela !== 'escolher' || !opcao(S.r, S.sel))) return false;
+    var chaves = Object.keys(S.anteriores);
+    for (var j = 0; j < chaves.length; j++) {
+      var r = Number(chaves[j]), a = S.anteriores[chaves[j]];
+      if (!(r >= n && r < RODADAS.length) || !a || !opcao(r, a.k)) return false;
+      if (a.crit !== null && CRITERIOS.indexOf(a.crit) < 0) return false;
+    }
+    for (var t = 0; t < S.trocas.length; t++) {
+      var tr = S.trocas[t];
+      if (!tr || !opcao(tr.r, tr.de) || !opcao(tr.r, tr.para) || (tr.tipo !== 'trocou' && tr.tipo !== 'manteve')) return false;
+      if (tr.deCrit !== null && CRITERIOS.indexOf(tr.deCrit) < 0) return false;
+    }
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+/* =====================================================================
+   3. TEXTOS DERIVADOS
+   ===================================================================== */
+function nivel(x, v) { return NIVEL[x][v]; }
+function tomDe(x, v) { return v === MAX[x] ? 'bom' : (v === 1 ? 'ruim' : 'aviso'); }
+function quanto(delta) {
+  var n = Math.abs(delta);
+  return (delta < 0 ? 'caiu ' : 'subiu ') + n + (n === 1 ? ' nível' : ' níveis');
+}
+function juntar(lista) {
+  if (lista.length <= 1) return lista.join('');
+  return lista.slice(0, -1).join(', ') + ' e ' + lista[lista.length - 1];
+}
+function pad(n) { return (n < 10 ? '0' : '') + n; }
+function dataHora(ms) {
+  var d = new Date(ms);
+  return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear() + ' às ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+function hora(ms) { var d = new Date(ms); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+function rotuloRodada(r) { return r < PRINCIPAIS ? 'Rodada ' + (r + 1) + ' de ' + PRINCIPAIS : 'Rodada extra ' + (r + 1); }
+function nomeRodada(r) { return 'Rodada ' + (r + 1) + (r >= PRINCIPAIS ? ' (extra)' : ''); }
+
+/* Para cada indicador: antes, depois, quanto mudou e se o limite "engoliu" parte do efeito. */
+function mudancas(f) {
+  var o = opcao(f.r, f.k);
+  return CHAVES.map(function (x) {
+    var pedido = o.d[x] || 0, delta = f.depois[x] - f.antes[x];
+    return {
+      x: x, antes: f.antes[x], depois: f.depois[x], delta: delta, pedido: pedido,
+      travado: pedido !== 0 && delta !== pedido,
+      porque: (o.porque && o.porque[x]) || ''
+    };
+  });
+}
+function mexeu(m) { return m.delta !== 0 || m.travado; }
+
+function textoTrava(m) {
+  if (m.delta === 0) return 'Esta escolha também pesa ' + NA[m.x] + ', mas a barra já está no nível mais baixo e não tem como descer.';
+  return 'Só não caiu mais porque chegou ao nível mais baixo.';
+}
+
+function fraseMudanca(m) {
+  if (m.delta === 0 && m.travado) return NOME[m.x] + ': já estava no nível mais baixo (' + nivel(m.x, m.antes) + ') e não desceu mais';
+  var s = NOME[m.x] + ': ' + nivel(m.x, m.antes) + ' → ' + nivel(m.x, m.depois) + ' (' + quanto(m.delta) + ')';
+  if (m.travado) s += '; só não caiu mais porque chegou ao nível mais baixo';
+  return s;
+}
+
+/* Versão para o leitor de tela (sem setas). */
+function falaMudancas(f) {
+  var partes = [], iguais = [];
+  mudancas(f).forEach(function (m) {
+    if (m.delta !== 0) {
+      partes.push(NOME[m.x] + ' ' + quanto(m.delta) + ', de ' + nivel(m.x, m.antes) + ' para ' + nivel(m.x, m.depois) +
+        (m.travado ? ', e só não caiu mais porque chegou ao nível mais baixo' : ''));
+    } else if (m.travado) {
+      partes.push(NOME[m.x] + ' já estava no nível mais baixo, ' + nivel(m.x, m.antes) + ', e não desceu mais');
+    } else {
+      iguais.push(NOME[m.x]);
+    }
+  });
+  var s = partes.length ? partes.join('. ') + '.' : 'Nenhum indicador mudou.';
+  if (partes.length && iguais.length) s += ' ' + juntar(iguais) + (iguais.length > 1 ? ' não mudaram.' : ' não mudou.');
+  return s;
+}
+
+function falaEstado(ind) {
+  return juntar(CHAVES.map(function (x) { return NOME[x] + ' ' + nivel(x, ind[x]); }));
+}
+
+function caminho(S) {
+  return S.feitas.map(function (f) { return f.k; }).join(' → ');
+}
+
+function pendentes(S) {
+  return Object.keys(S.anteriores).map(Number).sort(function (a, b) { return a - b; }).map(function (r) {
+    return { r: r, k: S.anteriores[r].k, crit: S.anteriores[r].crit };
+  });
+}
+
+function contagemTrocas(S) {
+  var trocou = 0, manteve = 0;
+  S.trocas.forEach(function (t) { if (t.tipo === 'trocou') trocou++; else manteve++; });
+  return { trocou: trocou, manteve: manteve, desfeitas: pendentes(S).length };
+}
+
+function textoTroca(t, comRodada) {
+  var base = comRodada ? nomeRodada(t.r) + ': ' : '';
+  if (t.tipo === 'manteve') return base + (comRodada ? 'voltou, revisou e manteve ' : 'Voltou, revisou e manteve ') + t.para + '.';
+  return base + (comRodada ? 'trocou ' : 'Trocou ') + t.de + ' por ' + t.para + '.' +
+    (t.deCrit ? ' Na escolha ' + t.de + ', o que mais pesou foi "' + t.deCrit + '".' : '');
+}
+
+function textoPendente(p) {
+  return nomeRodada(p.r) + ': desfez a escolha ' + p.k + ' e não escolheu de novo.';
+}
+
+function textoExtras(n) {
+  if (n >= RODADAS.length) return 'inclui as rodadas extras 4 e 5';
+  if (n === PRINCIPAIS + 1) return 'inclui a rodada extra 4; a 5 não foi jogada';
+  return 'as rodadas extras 4 e 5 não foram jogadas';
+}
+
+function travadosPorIndicador(S) {
+  var t = { m: 0, c: 0, k: 0 };
+  S.feitas.forEach(function (f) { mudancas(f).forEach(function (m) { if (m.travado) t[m.x]++; }); });
+  return t;
+}
+
+function textoTravados(S) {
+  var t = travadosPorIndicador(S), out = [];
+  CHAVES.forEach(function (x) {
+    if (t[x]) out.push('Em ' + t[x] + (t[x] === 1 ? ' escolha' : ' escolhas') + ', ' + NOME[x].toLowerCase() +
+      ' já estava no nível mais baixo e o efeito não apareceu na barra.');
+  });
+  return out;
+}
+
+/* Texto do resumo para copiar ou baixar. */
+function textoResumo(S, agora) {
+  var L = [], n = S.feitas.length, ct = contagemTrocas(S);
+  L.push('SEU SALÃO SOB CHOQUES · RESUMO DA SESSÃO');
+  L.push('Laboratório de Decisões sob Choques · simulação interativa, versão 2');
+  L.push('Valores fictícios. Educativo: não é consultoria financeira.');
+  L.push('');
+  if (S.inicio) L.push('Início da simulação: ' + dataHora(S.inicio));
+  L.push('Resumo gerado em: ' + dataHora(agora) + ', neste aparelho. Nada foi enviado pela internet.');
+  L.push('Rodadas jogadas: ' + n + ' de ' + RODADAS.length + ' (' + textoExtras(n) + ')');
+  L.push('Caminho: ' + (n ? caminho(S) : 'nenhuma escolha'));
+  L.push('Trocas de escolha: ' + ct.trocou + (ct.manteve ? ' (e ' + ct.manteve + (ct.manteve === 1 ? ' revisão' : ' revisões') + ' sem troca)' : ''));
+  L.push('');
+  L.push('INDICADORES: INÍCIO → FIM');
+  CHAVES.forEach(function (x) {
+    var d = S.ind[x] - INICIAL[x];
+    L.push('- ' + NOME[x] + ': ' + nivel(x, INICIAL[x]) + ' → ' + nivel(x, S.ind[x]) + ' (' + (d ? quanto(d) : 'não mudou') + ')');
+  });
+  textoTravados(S).forEach(function (t) { L.push('  ' + t); });
+  L.push('');
+  L.push('MAPA DO CAMINHO');
+  S.feitas.forEach(function (f) {
+    var R = RODADAS[f.r], o = opcao(f.r, f.k), ms = mudancas(f).filter(mexeu);
+    L.push('');
+    L.push(nomeRodada(f.r) + ' · ' + R.tag + ' · ' + R.titulo);
+    L.push('  Escolha: ' + o.k + '. ' + o.t);
+    L.push('  O que mais pesou: ' + (f.crit || 'não informado'));
+    if (!ms.length) {
+      L.push('  Variação: nenhum indicador mudou.');
+      if (o.porqueNada) L.push('    Por quê: ' + o.porqueNada);
+    } else {
+      ms.forEach(function (m) {
+        L.push('  Variação: ' + fraseMudanca(m));
+        if (m.porque) L.push('    Por quê: ' + m.porque);
+      });
+    }
+    if (o.fora) L.push('  Fora dos números: ' + o.fora);
+    var tr = S.trocas.filter(function (t) { return t.r === f.r; });
+    L.push('  Trocas nesta rodada: ' + (tr.length ? tr.map(function (t) { return textoTroca(t, false); }).join(' ') : 'nenhuma'));
+  });
+  pendentes(S).forEach(function (p) { L.push(''); L.push(textoPendente(p)); });
+  L.push('');
+  L.push('TROCAS FEITAS (em ordem)');
+  if (!S.trocas.length && !ct.desfeitas) L.push('- Nenhuma: cada escolha foi mantida de primeira.');
+  S.trocas.forEach(function (t) { L.push('- ' + hora(t.em) + ' · ' + textoTroca(t, true)); });
+  pendentes(S).forEach(function (p) { L.push('- ' + textoPendente(p)); });
+  L.push('');
+  L.push('CONVERSA FINAL');
+  L.push('- Que consequência você não esperava?');
+  L.push('- O que faria diferente num novo choque?');
+  return L.join('\n');
+}
+
+/* =====================================================================
+   4. HTML DAS TELAS (funções puras que devolvem texto)
+   ===================================================================== */
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  }).replace(/R\$ (?=\d)/g, function () { return 'R$ '; }); /* "R$ 864" não quebra na linha */
+}
+
+function htmlProgresso(S) {
+  var h = '<ol class="passos" aria-label="Progresso das rodadas">';
+  for (var i = 0; i < RODADAS.length; i++) {
+    var feita = i < S.feitas.length, atual = (S.tela === 'escolher' || S.tela === 'resultado') && i === S.r;
+    var extra = i >= PRINCIPAIS, estado = atual ? 'atual' : (feita ? 'feita' : 'a fazer');
+    h += '<li class="passo' + (feita ? ' feita' : '') + (atual ? ' atual' : '') + (extra ? ' extra' : '') + (i === PRINCIPAIS ? ' primeira-extra' : '') + '">' +
+      '<span class="passo-num" aria-hidden="true">' + (feita && !atual ? '✓' : (i + 1)) + '</span>' +
+      '<span class="sr-only">Rodada ' + (i + 1) + (extra ? ', extra' : '') + ': ' + estado + '</span></li>';
+  }
+  h += '</ol>';
+  var txt;
+  if (S.tela === 'intro') txt = '3 rodadas, mais 2 extras opcionais (bordas tracejadas)';
+  else if (S.tela === 'resumo') txt = 'Resumo final';
+  else txt = S.r < PRINCIPAIS ? 'Rodada ' + (S.r + 1) + ' de ' + PRINCIPAIS : 'Rodada extra ' + (S.r + 1) + ' (opcional)';
+  return h + '<p class="progresso-texto" aria-hidden="true">' + esc(txt) + '</p>';
+}
+
+function htmlDefinicoes() {
+  return '<dl class="defs">' + CHAVES.map(function (x) {
+    var niveis = [];
+    for (var v = MAX[x]; v >= 1; v--) niveis.push(NIVEL[x][v]);
+    return '<div><dt>' + NOME[x] + '</dt><dd>' + esc(DEFINICAO[x]) +
+      ' <span class="niveis">Níveis, do melhor para o pior: ' + esc(niveis.join(', ')) + '.</span></dd></div>';
+  }).join('') + '</dl>';
+}
+
+function htmlComoLer() {
+  return '<details class="como-ler"><summary>O que é cada indicador?</summary>' + htmlDefinicoes() + '</details>';
+}
+
+/* f (opcional): escolha recém-feita, para mostrar o que mudou em cada indicador. */
+function htmlIndicadores(ind, f, rotulo) {
+  var ms = {};
+  if (f) mudancas(f).forEach(function (m) { ms[m.x] = m; });
+  var h = '<section class="cartao indicadores" aria-label="' + esc(rotulo || 'Indicadores do seu salão') + '">';
+  CHAVES.forEach(function (x) {
+    var v = ind[x], tom = tomDe(x, v), m = ms[x];
+    h += '<div class="ind"><p class="ind-linha"><span class="ind-nome">' + NOME[x] + '</span>' +
+      '<span class="ind-valor t-' + tom + '">' + esc(nivel(x, v)) + '<span class="sr-only">, nível ' + v + ' de ' + MAX[x] + '</span></span></p>';
+    h += '<div class="segs" aria-hidden="true">';
+    for (var i = 1; i <= MAX[x]; i++) h += '<span class="seg' + (i <= v ? ' f-' + tom : '') + '"></span>';
+    h += '</div>';
+    if (m && m.delta !== 0) {
+      h += '<p class="ind-delta t-' + (m.delta < 0 ? 'ruim' : 'bom') + '"><span aria-hidden="true">' + (m.delta < 0 ? '▼' : '▲') + '</span> ' +
+        quanto(m.delta) + ' · antes: ' + esc(nivel(x, m.antes)) + '</p>';
+    } else if (m && m.travado) {
+      h += '<p class="ind-delta t-ruim"><span aria-hidden="true">■</span> já estava no nível mais baixo</p>';
+    }
+    h += '</div>';
+  });
+  return h + '</section>';
+}
+
+function htmlDicas(lista) {
+  return lista.map(function (d) {
+    var alertaTipo = d.tipo === 'alerta';
+    return '<p class="dica dica-' + d.tipo + '"><span class="dica-icone" aria-hidden="true">' + (alertaTipo ? '!' : 'i') + '</span>' +
+      '<span>' + (alertaTipo ? '<span class="sr-only">Atenção: </span>' : '') + esc(d.texto) + '</span></p>';
+  }).join('');
+}
+
+function htmlCabecalhoRodada(S, focar) {
+  var R = RODADAS[S.r];
+  return '<p class="rotulo">' + esc(rotuloRodada(S.r) + ' · ' + R.tag) + '</p>' +
+    '<h2 tabindex="-1"' + (focar ? ' data-foco' : '') + '>' + esc(R.titulo) + '</h2>' +
+    (R.extra ? '<p class="selo-extra">Rodada extra, opcional. O roteiro de 70 minutos usa só as rodadas 1 a 3.</p>' : '');
+}
+
+function htmlIntro() {
+  return '<p class="rotulo">Antes de começar</p>' +
+    '<h2 tabindex="-1" data-foco>Como funciona</h2>' +
+    '<p>São situações que podem acontecer num salão como o seu. Em cada rodada, você escolhe o que faria. <strong>Não existe resposta certa nem nota.</strong></p>' +
+    '<p>Três indicadores mostram como o salão fica depois de cada escolha. O efeito de uma rodada passa para a seguinte.</p>' +
+    '<section class="cartao" aria-labelledby="h-ind"><h3 id="h-ind">Os três indicadores</h3>' + htmlDefinicoes() + '</section>' +
+    '<p><strong>Você começa assim:</strong></p>' +
+    htmlIndicadores(INICIAL, null, 'Indicadores no começo') +
+    '<ul class="lista">' +
+    '<li>3 rodadas, como no roteiro, e mais 2 rodadas extras opcionais.</li>' +
+    '<li>Você marca uma alternativa e confirma. Depois, a tela mostra o que mudou e por quê.</li>' +
+    '<li>Dá para voltar e trocar uma escolha. A troca fica registrada no resumo.</li>' +
+    '<li>No fim, um resumo para a conversa, que pode ser copiado ou baixado.</li>' +
+    '</ul>' +
+    '<button type="button" class="btn btn-primario btn-largo" data-acao="comecar">Começar a rodada 1</button>';
+}
+
+function htmlEscolher(S) {
+  var R = RODADAS[S.r], ant = S.anteriores[S.r], h = htmlCabecalhoRodada(S, true);
+  h += htmlIndicadores(S.ind, null);
+  h += htmlComoLer();
+  h += '<section class="cartao" aria-labelledby="h-sit"><h3 id="h-sit">A situação</h3><p>' + esc(R.sit) + '</p>';
+  if (R.info) h += '<ul class="info">' + R.info.map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') + '</ul>';
+  if (R.nota) h += '<p class="nota">' + esc(R.nota) + '</p>';
+  h += '</section>';
+  if (R.destaque) h += htmlDicas([info(R.destaque)]);
+  h += htmlDicas(R.dicas(S.ind, escolhasFeitas(S)));
+  h += '<form id="form-escolha" class="cartao" novalidate><fieldset><legend>O que você faria?</legend>';
+  if (ant) h += '<p class="nota-anterior">Sua escolha anterior nesta rodada foi <strong>' + ant.k + '</strong>. Você pode manter ou trocar.</p>';
+  R.opcoes.forEach(function (o) {
+    var on = S.sel === o.k;
+    h += '<label class="opcao' + (on ? ' marcada' : '') + '"><input type="radio" name="alternativa" value="' + o.k + '"' + (on ? ' checked' : '') + '>' +
+      '<span class="letra" aria-hidden="true">' + o.k + '</span><span class="opcao-texto"><span class="sr-only">' + o.k + ': </span>' + esc(o.t) + '</span></label>';
+  });
+  h += '</fieldset><p id="aviso-escolha" class="aviso-escolha" role="alert"></p>';
+  h += '<button type="submit" id="btn-confirmar" class="btn btn-primario btn-largo" aria-disabled="' + (S.sel ? 'false' : 'true') + '">' +
+    (S.sel ? 'Confirmar a escolha ' + S.sel : 'Confirmar escolha') + '</button></form>';
+  h += '<button type="button" class="btn btn-secundario btn-largo" data-acao="voltar"><span aria-hidden="true">←</span> ' +
+    (S.r === 0 ? 'Voltar para o início' : 'Voltar para a rodada ' + S.r) + '</button>';
+  return h;
+}
+
+function htmlLinhaMudanca(m) {
+  if (m.delta === 0) {
+    return '<p><span class="marca t-ruim" aria-hidden="true">■</span> <strong>' + NOME[m.x] + ':</strong> já estava no nível mais baixo (' + esc(nivel(m.x, m.antes)) + ')</p>';
+  }
+  var cai = m.delta < 0;
+  return '<p><span class="marca t-' + (cai ? 'ruim' : 'bom') + '" aria-hidden="true">' + (cai ? '▼' : '▲') + '</span> <strong>' + NOME[m.x] + ':</strong> ' +
+    esc(nivel(m.x, m.antes)) + ' <span aria-hidden="true">→</span><span class="sr-only">para</span> <strong class="t-' + tomDe(m.x, m.depois) + '">' + esc(nivel(m.x, m.depois)) + '</strong> ' +
+    '<span class="qto">(' + quanto(m.delta) + ')</span></p>';
+}
+
+function htmlExplicacao(f, curto) {
+  var o = opcao(f.r, f.k), mud = [], iguais = [], h = '';
+  mudancas(f).forEach(function (m) { (mexeu(m) ? mud : iguais).push(m); });
+  if (!mud.length) {
+    h += '<p class="nenhum"><strong>Nenhum indicador mudou.</strong>' + (!curto && o.porqueNada ? ' <strong>Por quê:</strong> ' + esc(o.porqueNada) : '') + '</p>';
+  } else {
+    h += '<ul class="mudancas">';
+    mud.forEach(function (m) {
+      h += '<li class="mud' + (m.delta > 0 ? ' sobe' : '') + '">' + htmlLinhaMudanca(m);
+      if (!curto && m.porque) h += '<p><strong>Por quê:</strong> ' + esc(m.porque) + '</p>';
+      if (m.travado) h += '<p class="mud-trava">' + esc(textoTrava(m)) + '</p>';
+      h += '</li>';
+    });
+    h += '</ul>';
+    if (iguais.length) h += '<p><strong>' + (iguais.length > 1 ? 'Não mudaram:' : 'Não mudou:') + '</strong> ' + esc(juntar(iguais.map(function (m) { return NOME[m.x]; }))) + '.</p>';
+  }
+  if (!curto) {
+    if (o.conta) h += '<p class="conta"><strong>Na conta</strong> (valores fictícios): ' + esc(o.conta) + '</p>';
+    if (o.emTroca) h += '<p class="emtroca"><strong>Em troca:</strong> ' + esc(o.emTroca) + '</p>';
+    if (o.fora) h += '<p class="fora"><strong>Fora dos números:</strong> ' + esc(o.fora) + '</p>';
+  }
+  return h;
+}
+
+function htmlCriterios(f) {
+  return '<section class="cartao" aria-labelledby="h-pesou"><h3 id="h-pesou">O que mais pesou na decisão? <span class="opcional">(opcional, marque um)</span></h3>' +
+    '<div class="chips" role="group" aria-labelledby="h-pesou">' +
+    CRITERIOS.map(function (c) {
+      return '<button type="button" class="chip" data-acao="criterio" data-valor="' + esc(c) + '" aria-pressed="' + (f.crit === c ? 'true' : 'false') + '">' + esc(c) + '</button>';
+    }).join('') + '</div></section>';
+}
+
+function htmlSeguir(S) {
+  var r = S.r, seta = ' <span aria-hidden="true">→</span>';
+  if (r === PRINCIPAIS - 1) {
+    return '<section class="cartao" aria-labelledby="h-fim"><h3 id="h-fim">Fim das 3 rodadas do roteiro</h3>' +
+      '<p>As rodadas 4 (uma semana sem atender) e 5 (visita da fiscalização sanitária) são <strong>extras e opcionais</strong>. O roteiro de 70 minutos usa só as 3 primeiras.</p>' +
+      '<div class="acoes-col"><button type="button" class="btn btn-primario btn-largo" data-acao="resumo">Ver resumo agora</button>' +
+      '<button type="button" class="btn btn-secundario btn-largo" data-acao="extras">Continuar para as rodadas extras</button></div></section>';
+  }
+  if (r === RODADAS.length - 1) return '<button type="button" class="btn btn-primario btn-largo" data-acao="proxima">Ver o resumo final' + seta + '</button>';
+  if (r >= PRINCIPAIS) {
+    return '<div class="acoes-col"><button type="button" class="btn btn-primario btn-largo" data-acao="proxima">Próxima rodada extra (' + (r + 2) + ')' + seta + '</button>' +
+      '<button type="button" class="btn btn-secundario btn-largo" data-acao="resumo">Ver resumo agora</button></div>';
+  }
+  return '<button type="button" class="btn btn-primario btn-largo" data-acao="proxima">Próxima rodada' + seta + '</button>';
+}
+
+function htmlResultado(S) {
+  var f = S.feitas[S.r], o = opcao(S.r, f.k), h = htmlCabecalhoRodada(S, false);
+  h += htmlIndicadores(S.ind, f);
+  h += '<section class="cartao escolhido" aria-labelledby="h-escolha">' +
+    '<p class="rotulo">Você escolheu ' + o.k + '</p>' +
+    '<h3 id="h-escolha" tabindex="-1" data-foco>' + esc(o.t) + '</h3>' +
+    '<p>' + esc(o.r) + '</p>' +
+    '<h4>O que mudou e por quê</h4>' + htmlExplicacao(f, false) + '</section>';
+  h += htmlCriterios(f);
+  h += htmlSeguir(S);
+  h += '<button type="button" class="btn btn-secundario btn-largo" data-acao="trocar"><span aria-hidden="true">↺</span> Trocar esta escolha</button>';
+  return h;
+}
+
+function htmlResumo(S) {
+  var n = S.feitas.length, ct = contagemTrocas(S), pend = pendentes(S), h = '';
+  h += '<p class="rotulo">Resultado final</p><h2 tabindex="-1" data-foco>O caminho que você percorreu</h2>';
+  h += '<p class="caminho">Caminho: <strong aria-hidden="true">' + esc(caminho(S)) + '</strong>' +
+    '<span class="sr-only">' + esc(S.feitas.map(function (f) { return f.k; }).join(', depois ')) + '</span></p>';
+  h += '<p>Rodadas jogadas: ' + n + ' de ' + RODADAS.length + ' (' + esc(textoExtras(n)) + ').</p>';
+
+  /* do início ao fim */
+  h += '<section class="cartao" aria-labelledby="h-total"><h3 id="h-total">Do início ao fim</h3><ul class="total-linha">';
+  CHAVES.forEach(function (x) {
+    var d = S.ind[x] - INICIAL[x];
+    h += '<li><strong>' + NOME[x] + ':</strong> ' + esc(nivel(x, INICIAL[x])) + ' <span aria-hidden="true">→</span><span class="sr-only">para</span> ' +
+      '<strong class="t-' + tomDe(x, S.ind[x]) + '">' + esc(nivel(x, S.ind[x])) + '</strong> <span class="qto">(' + (d ? quanto(d) : 'não mudou') + ')</span></li>';
+  });
+  h += '</ul>';
+  textoTravados(S).forEach(function (t) { h += '<p class="nota">' + esc(t) + '</p>'; });
+  h += htmlIndicadores(S.ind, null, 'Indicadores no fim') + '</section>';
+
+  /* mapa do caminho */
+  h += '<section class="cartao" aria-labelledby="h-mapa"><h3 id="h-mapa">Mapa do caminho</h3><ol class="linha-tempo">';
+  S.feitas.forEach(function (f) {
+    var R = RODADAS[f.r], o = opcao(f.r, f.k);
+    var tr = S.trocas.filter(function (t) { return t.r === f.r; });
+    h += '<li class="etapa' + (f.r >= PRINCIPAIS ? ' extra' : '') + '"><span class="etapa-num" aria-hidden="true">' + (f.r + 1) + '</span><div class="etapa-corpo">' +
+      '<p class="etapa-tag">' + esc(nomeRodada(f.r) + ' · ' + R.tag) + '</p>' +
+      '<h4>' + esc(R.titulo) + '</h4>' +
+      '<p><span class="letra-mini" aria-hidden="true">' + o.k + '</span><span class="sr-only">Escolha ' + o.k + ': </span>' + esc(o.t) + '</p>' +
+      '<p>Pesou mais: <strong>' + esc(f.crit || 'não informado') + '</strong></p>' +
+      htmlExplicacao(f, true);
+    tr.forEach(function (t) { h += '<p class="etapa-troca"><span aria-hidden="true">↺</span> ' + esc(textoTroca(t, false)) + '</p>'; });
+    h += '</div></li>';
+  });
+  h += '</ol></section>';
+
+  /* trocas */
+  h += '<section class="cartao" aria-labelledby="h-trocas"><h3 id="h-trocas">Trocas feitas</h3>';
+  if (!S.trocas.length && !pend.length) {
+    h += '<p>Nenhuma troca: cada escolha foi mantida de primeira.</p>';
+  } else {
+    h += '<p>' + ct.trocou + (ct.trocou === 1 ? ' troca de escolha' : ' trocas de escolha') +
+      (ct.manteve ? ' e ' + ct.manteve + (ct.manteve === 1 ? ' revisão sem troca' : ' revisões sem troca') : '') +
+      '. Vale conversar: o que fez você mudar de ideia?</p><ol class="trocas-lista">';
+    S.trocas.forEach(function (t) { h += '<li>' + hora(t.em) + ' · ' + esc(textoTroca(t, true)) + '</li>'; });
+    pend.forEach(function (p) { h += '<li>' + esc(textoPendente(p)) + '</li>'; });
+    h += '</ol>';
+  }
+  h += '</section>';
+
+  /* extras não jogadas */
+  if (n < RODADAS.length) {
+    h += '<section class="cartao" aria-labelledby="h-extras"><h3 id="h-extras">Rodadas extras (opcionais)</h3>' +
+      '<p>' + (n === PRINCIPAIS ? 'Ainda dá para jogar a rodada 4 (uma semana sem atender) e a 5 (visita da fiscalização sanitária).' : 'Ainda dá para jogar a rodada 5 (visita da fiscalização sanitária).') + '</p>' +
+      '<button type="button" class="btn btn-secundario btn-largo" data-acao="extras">' + (n === PRINCIPAIS ? 'Jogar as rodadas extras' : 'Jogar a rodada extra 5') + '</button></section>';
+  }
+
+  /* conversa final (mesma pergunta da v1) */
+  h += '<section class="cartao" aria-labelledby="h-conversa"><h3 id="h-conversa">Conversa final</h3>' +
+    '<p>Que consequência você não esperava? O que faria diferente num novo choque?</p></section>';
+
+  /* guardar */
+  h += '<section class="cartao" aria-labelledby="h-guardar"><h3 id="h-guardar">Guardar o resumo</h3>' +
+    '<p>Para o facilitador anexar ao relatório. O texto é gerado neste aparelho: nada é enviado pela internet.</p>' +
+    '<div class="acoes-col"><button type="button" class="btn btn-primario btn-largo" data-acao="copiar">Copiar resumo</button>' +
+    '<button type="button" class="btn btn-secundario btn-largo" data-acao="baixar">Baixar resumo (.txt)</button></div>' +
+    '<p id="status-guardar" class="status" role="status"></p>' +
+    '<div id="copia-manual" hidden><label for="txt-manual">Se a cópia automática não funcionar, toque no texto, selecione tudo e copie:</label>' +
+    '<textarea id="txt-manual" readonly></textarea></div></section>';
+
+  /* e na vida real? */
+  h += '<section class="cartao vida-real" aria-labelledby="h-vida"><h3 id="h-vida">E na vida real?</h3>' +
+    '<p>Ninguém prevê o futuro. Mas cinco hábitos simples, do Kit de Resiliência, deixam seu salão mais preparado para choques como estes:</p>' +
+    '<ol class="habitos">' + HABITOS.map(function (hb) { return '<li><strong>' + esc(hb[0]) + '</strong> ' + esc(hb[1]) + '</li>'; }).join('') + '</ol>';
+  if (n > PRINCIPAIS) h += '<p>O Kit também traz um plano de uma página para uma semana sem atender e cuidados com resíduos, ligados às rodadas extras.</p>';
+  h += '<p>O <strong>Fôlego</strong>, o caixa do salão, ajuda a acompanhar Margem, Caixa e reserva no dia a dia, com os seus números. Os dados ficam só no seu celular.</p>' +
+    '<a class="btn btn-primario btn-largo" href="../">Abrir o Fôlego</a></section>';
+
+  h += '<button type="button" class="btn btn-secundario btn-largo" data-acao="voltar"><span aria-hidden="true">←</span> Voltar para a rodada ' + n + '</button>';
+  return h;
+}
+
+function htmlRecomeco(S) {
+  if (S.tela === 'intro' && !S.feitas.length) return '';
+  var aviso = S.tela === 'resumo' ?
+    'Isso apaga as escolhas desta sessão. Se precisar, copie ou baixe o resumo antes.' :
+    'Isso apaga as escolhas desta sessão e volta ao início.';
+  return '<div class="recomeco"><button type="button" class="btn-link" data-acao="pedir-recomeco" aria-expanded="false" aria-controls="caixa-recomeco">Recomeçar do zero</button>' +
+    '<div id="caixa-recomeco" class="cartao" hidden><p>' + aviso + '</p><div class="acoes-col">' +
+    '<button type="button" class="btn btn-perigo btn-largo" data-acao="recomecar">Sim, recomeçar</button>' +
+    '<button type="button" class="btn btn-secundario btn-largo" data-acao="cancelar-recomeco">Cancelar</button></div></div></div>';
+}
+
+function htmlTela(S) {
+  if (S.tela === 'intro') return htmlIntro();
+  if (S.tela === 'escolher') return htmlEscolher(S);
+  if (S.tela === 'resultado') return htmlResultado(S);
+  return htmlResumo(S);
+}
+
+/* =====================================================================
+   5. TELA (DOM)
+   ===================================================================== */
+var S = novoEstado();
+var app, progresso, anuncio, recuperado = false, primeiroDesenho = true;
+
+function salvar() {
+  try { window.sessionStorage.setItem(CHAVE_SESSAO, JSON.stringify(S)); } catch (e) { /* sem sessionStorage: segue só em memória */ }
+}
+function carregar() {
+  try {
+    var t = window.sessionStorage.getItem(CHAVE_SESSAO);
+    if (!t) return;
+    var s = JSON.parse(t);
+    if (estadoValido(s)) { S = s; recuperado = S.tela !== 'intro' || S.feitas.length > 0; }
+  } catch (e) { /* ignora estado salvo inválido */ }
+}
+function limparSessao() {
+  try { window.sessionStorage.removeItem(CHAVE_SESSAO); } catch (e) { /* nada a limpar */ }
+}
+
+function anunciar(txt) {
+  if (!anuncio || !txt) return;
+  anuncio.textContent = '';
+  setTimeout(function () { anuncio.textContent = txt; }, 80);
+}
+
+function desenhar() {
+  progresso.innerHTML = htmlProgresso(S);
+  var aviso = '';
+  if (recuperado && primeiroDesenho) aviso = '<p class="nota-recuperado" role="status">Seu progresso nesta aba foi recuperado.</p>';
+  app.innerHTML = aviso + htmlTela(S) + htmlRecomeco(S);
+  if (!primeiroDesenho) {
+    var alvo = app.querySelector('[data-foco]');
+    if (alvo) { try { alvo.focus({ preventScroll: true }); } catch (e) { alvo.focus(); } }
+  }
+  window.scrollTo(0, 0);
+  primeiroDesenho = false;
+}
+
+function atualizarSelecao() {
+  var labels = app.querySelectorAll('.opcao');
+  for (var i = 0; i < labels.length; i++) {
+    var inp = labels[i].querySelector('input');
+    if (inp.value === S.sel) labels[i].classList.add('marcada'); else labels[i].classList.remove('marcada');
+  }
+  var btn = document.getElementById('btn-confirmar');
+  if (btn) {
+    btn.textContent = S.sel ? 'Confirmar a escolha ' + S.sel : 'Confirmar escolha';
+    btn.setAttribute('aria-disabled', S.sel ? 'false' : 'true');
+  }
+  var av = document.getElementById('aviso-escolha');
+  if (av) av.textContent = '';
+}
+
+function atualizarCriterios() {
+  var f = S.feitas[S.r], bs = app.querySelectorAll('[data-acao="criterio"]');
+  for (var i = 0; i < bs.length; i++) bs[i].setAttribute('aria-pressed', bs[i].getAttribute('data-valor') === f.crit ? 'true' : 'false');
+}
+
+function executar(tipo, dado) {
+  var novo = agir(S, tipo, dado);
+  if (novo === S) return;
+  S = novo;
+  salvar();
+  if (tipo === 'selecionar') { atualizarSelecao(); return; }
+  if (tipo === 'criterio') { atualizarCriterios(); return; }
+  desenhar();
+  if (tipo === 'confirmar') {
+    var f = S.feitas[S.feitas.length - 1];
+    anunciar('Você escolheu ' + f.k + '. ' + falaMudancas(f));
+  } else if (tipo === 'trocar') {
+    anunciar('Escolha desfeita. Os indicadores voltaram para: ' + falaEstado(S.ind) + '.');
+  }
+}
+
+function mostrarStatus(msg) {
+  var el = document.getElementById('status-guardar');
+  if (!el) return;
+  el.textContent = '';
+  setTimeout(function () { el.textContent = msg; }, 60);
+}
+
+function mostrarCopiaManual(txt) {
+  var box = document.getElementById('copia-manual'), ta = document.getElementById('txt-manual');
+  if (!box || !ta) return;
+  ta.value = txt;
+  box.hidden = false;
+  ta.focus();
+  ta.select();
+}
+
+function copiaAntiga(txt) {
+  var ta = document.createElement('textarea'), ok = false;
+  ta.value = txt;
+  ta.setAttribute('readonly', '');
+  ta.style.position = 'fixed';
+  ta.style.top = '-1000px';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+  document.body.removeChild(ta);
+  return ok;
+}
+
+function copiarResumo() {
+  var txt = textoResumo(S, Date.now());
+  function ok() { mostrarStatus('Resumo copiado. Agora é só colar onde precisar.'); }
+  function falhou() {
+    mostrarStatus('Não deu para copiar automaticamente. O texto está na caixa abaixo.');
+    mostrarCopiaManual(txt);
+  }
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(txt).then(ok, function () { if (copiaAntiga(txt)) ok(); else falhou(); });
+    } else if (copiaAntiga(txt)) {
+      ok();
+    } else {
+      falhou();
+    }
+  } catch (e) {
+    falhou();
+  }
+}
+
+function nomeArquivo(agora) {
+  var d = new Date(agora);
+  return 'resumo-seu-salao-sob-choques-' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '-' + pad(d.getHours()) + pad(d.getMinutes()) + '.txt';
+}
+
+function baixarResumo() {
+  var agora = Date.now(), txt = textoResumo(S, agora), nome = nomeArquivo(agora);
+  try {
+    /* BOM + quebras de linha do Windows para abrir certo em qualquer bloco de notas */
+    var blob = new Blob(['﻿' + txt.replace(/\n/g, '\r\n')], { type: 'text/plain;charset=utf-8' });
+    var url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url;
+    a.download = nome;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(url); if (a.parentNode) a.parentNode.removeChild(a); }, 1500);
+    mostrarStatus('Arquivo "' + nome + '" gerado. Procure na pasta de downloads do aparelho.');
+  } catch (e) {
+    mostrarStatus('Não deu para baixar o arquivo neste navegador. O texto está na caixa abaixo.');
+    mostrarCopiaManual(txt);
+  }
+}
+
+function mostrarRecomeco(abrir) {
+  var caixa = document.getElementById('caixa-recomeco');
+  var gatilho = app.querySelector('[data-acao="pedir-recomeco"]');
+  if (!caixa || !gatilho) return;
+  caixa.hidden = !abrir;
+  gatilho.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+  if (abrir) caixa.querySelector('[data-acao="cancelar-recomeco"]').focus();
+  else gatilho.focus();
+}
+
+function iniciar() {
+  app = document.getElementById('app');
+  progresso = document.getElementById('progresso');
+  anuncio = document.getElementById('anuncio');
+
+  app.addEventListener('click', function (ev) {
+    var b = ev.target && ev.target.closest ? ev.target.closest('[data-acao]') : null;
+    if (!b || !app.contains(b)) return;
+    var a = b.getAttribute('data-acao'), dado = b.getAttribute('data-valor');
+    if (a === 'copiar') { copiarResumo(); return; }
+    if (a === 'baixar') { baixarResumo(); return; }
+    if (a === 'pedir-recomeco') { mostrarRecomeco(true); return; }
+    if (a === 'cancelar-recomeco') { mostrarRecomeco(false); return; }
+    if (a === 'recomecar') {
+      limparSessao();
+      S = novoEstado();
+      desenhar();
+      anunciar('Simulação recomeçada. Os indicadores voltaram para: ' + falaEstado(S.ind) + '.');
+      return;
+    }
+    executar(a, dado);
+  });
+
+  app.addEventListener('change', function (ev) {
+    var t = ev.target;
+    if (t && t.name === 'alternativa') executar('selecionar', t.value);
+  });
+
+  app.addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    if (!S.sel) {
+      var av = document.getElementById('aviso-escolha');
+      if (av) av.textContent = 'Marque uma das alternativas acima antes de confirmar.';
+      var primeiro = app.querySelector('input[name="alternativa"]');
+      if (primeiro) primeiro.focus();
+      return;
+    }
+    executar('confirmar');
+  });
+
+  carregar();
+  desenhar();
+  if (recuperado) anunciar('Seu progresso nesta aba foi recuperado.');
+}
+
+if (typeof document !== 'undefined' && document.getElementById('app')) iniciar();
+</script>
+</body>
+</html>

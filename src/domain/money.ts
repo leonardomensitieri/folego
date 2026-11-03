@@ -18,23 +18,18 @@ export function brlCurto(c: Centavos): string {
  * Devolve centavos ou null se não der para entender.
  */
 export function parseValor(texto: string): Centavos | null {
-  let s = texto.replace(/r\$/gi, '').replace(/\s/g, '')
+  const s = texto.replace(/r\$/gi, '').replace(/\s/g, '')
   if (!s) return null
-  if (!/^\d[\d.,]*$/.test(s)) return null
-  const temVirgula = s.includes(',')
-  if (temVirgula) {
-    s = s.replace(/\./g, '').replace(',', '.')
-  } else {
-    // "1.200" = mil e duzentos; "80.90" = oitenta e noventa.
-    const partes = s.split('.')
-    if (partes.length > 1 && partes[partes.length - 1].length !== 3) {
-      s = partes.slice(0, -1).join('') + '.' + partes[partes.length - 1]
-    } else {
-      s = partes.join('')
-    }
-  }
-  const n = Number(s)
-  if (!Number.isFinite(n) || n < 0) return null
+  let normal: string
+  if (/^\d+$/.test(s)) normal = s // 50
+  else if (/^\d{1,3}(\.\d{3})+$/.test(s)) normal = s.replace(/\./g, '') // 1.200 = mil e duzentos
+  else if (/^\d+,\d{1,2}$/.test(s)) normal = s.replace(',', '.') // 50,5 · 89,90
+  else if (/^\d{1,3}(\.\d{3})+,\d{1,2}$/.test(s)) normal = s.replace(/\./g, '').replace(',', '.') // 1.200,00
+  else if (/^\d+\.\d{1,2}$/.test(s)) normal = s // 80.90 (jeito de teclado americano)
+  else if (/^\d+,$/.test(s)) normal = s.slice(0, -1) // "50," enquanto digita
+  else return null // "1,234", "1.2.3": melhor perguntar do que adivinhar
+  const n = Number(normal)
+  if (!Number.isFinite(n) || n < 0 || n > 10_000_000) return null
   return Math.round(n * 100)
 }
 

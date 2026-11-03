@@ -28,7 +28,7 @@ export function Instalar() {
       {instalado ? (
         <Nota tom="bom">O Fôlego já está instalado neste celular. 🎉</Nota>
       ) : (
-        <Nota tom="alerta">Instale o app na tela inicial. Assim ele abre como aplicativo, funciona sem internet e o celular protege melhor os seus dados.</Nota>
+        <Nota tom="alerta">Instale o app na tela inicial: ele abre como aplicativo e funciona sem internet. <b>No iPhone, o app instalado começa vazio</b> — se você já anotou coisas aqui, faça antes uma cópia de segurança e, depois, abra o app pelo ícone e toque em “Voltar uma cópia”.</Nota>
       )}
 
       {pedidoInstalacao.value && !instalado && (
@@ -57,7 +57,7 @@ export function Instalar() {
           <li>Confirme. Pronto.</li>
         </ol>
       </div>
-      <Nota>Dica: depois de instalar, abra sempre pelo ícone. Os dados ficam guardados dentro do app instalado.</Nota>
+      <Nota>Depois de instalar, abra sempre pelo ícone. Os dados ficam guardados dentro do app instalado.</Nota>
     </Pagina>
   )
 }

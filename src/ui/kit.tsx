@@ -7,29 +7,48 @@ import { IcVoltar } from './icons'
 import { voltar } from './router'
 
 // ---------- aviso rápido (toast) com "desfazer" ----------
+export interface AcaoAviso {
+  rotulo: string
+  fazer: () => void
+}
 export interface Aviso {
   texto: string
-  acao?: { rotulo: string; fazer: () => void }
+  acoes: AcaoAviso[]
 }
 export const aviso = signal<Aviso | null>(null)
 let avisoTimer: ReturnType<typeof setTimeout> | undefined
+let avisoMs = 10_000
 
-export function avisar(texto: string, acao?: Aviso['acao'], ms = 5000) {
-  aviso.value = { texto, acao }
+/** Mostra um aviso por 10 s (ou mais). Aceita até duas ações, ex.: "Desfazer" e "Guardar". */
+export function avisar(texto: string, acao?: AcaoAviso | AcaoAviso[], ms = 10_000) {
+  aviso.value = { texto, acoes: acao ? (Array.isArray(acao) ? acao : [acao]) : [] }
+  avisoMs = ms
+  armarTimer()
+}
+function armarTimer() {
   clearTimeout(avisoTimer)
-  avisoTimer = setTimeout(() => (aviso.value = null), ms)
+  avisoTimer = setTimeout(() => (aviso.value = null), avisoMs)
+}
+function pausarTimer() {
+  clearTimeout(avisoTimer)
 }
 
+/** A região "ao vivo" fica sempre na página para o leitor de tela anunciar cada aviso novo. */
 export function Toast() {
   const a = aviso.value
-  if (!a) return null
   return (
-    <div class="toast" role="status" aria-live="polite">
-      <span>{a.texto}</span>
-      {a.acao && (
-        <button class="toast-acao" onClick={() => { a.acao!.fazer(); aviso.value = null }}>
-          {a.acao.rotulo}
-        </button>
+    <div class="toast-regiao" role="status" aria-live="polite" aria-atomic="true">
+      {a && (
+        <div class="toast" onPointerEnter={pausarTimer} onPointerLeave={armarTimer} onFocusCapture={pausarTimer} onBlurCapture={armarTimer}>
+          <span>{a.texto}</span>
+          {a.acoes.length > 0 && (
+            <span class="toast-acoes">
+              {a.acoes.map((ac) => (
+                <button class="toast-acao" onClick={() => { aviso.value = null; ac.fazer() }}>{ac.rotulo}</button>
+              ))}
+            </span>
+          )}
+        </div>
       )}
     </div>
   )
@@ -66,8 +85,9 @@ export function Cartao({ children, class: cls = '', onClick, rotulo }: {
 }) {
   if (onClick) {
     return (
-      <button class={`cartao cartao-botao ${cls}`} onClick={onClick} aria-label={rotulo}>
+      <button class={`cartao cartao-botao ${cls}`} onClick={onClick}>
         {children}
+        {rotulo && <span class="sr-only">{rotulo}</span>}
       </button>
     )
   }
@@ -138,9 +158,10 @@ export function CampoTexto({ valor, aoMudar, rotulo, placeholder, id, dica, maxL
   return (
     <label class="campo" for={id}>
       <span class="campo-rotulo">{rotulo}</span>
-      <input id={id} class="campo-input" value={valor} placeholder={placeholder} maxLength={maxLength}
+      <input id={id} class="campo-input" value={valor} placeholder={placeholder} maxLength={maxLength} autoComplete="off"
+        aria-describedby={dica ? `${id}-dica` : undefined}
         onInput={(e) => aoMudar((e.currentTarget as HTMLInputElement).value)} />
-      {dica && <span class="campo-dica">{dica}</span>}
+      {dica && <span class="campo-dica" id={`${id}-dica`}>{dica}</span>}
     </label>
   )
 }
@@ -241,7 +262,34 @@ export function Nota({ children, tom = 'info' }: { children: ComponentChildren; 
   return <p class={`nota nota-${tom}`}>{children}</p>
 }
 
-/** Abre o WhatsApp com a mensagem pronta; a pessoa escolhe o contato lá. */
-export function linkWhatsApp(texto: string) {
-  return `https://wa.me/?text=${encodeURIComponent(texto)}`
+/**
+ * Manda um texto para o WhatsApp (ou outro app) sem colocar nada no endereço da internet:
+ * 1) "Compartilhar" do celular (o texto vai direto, dentro do aparelho, para o app escolhido);
+ * 2) se não houver, copia o texto para ela colar;
+ * 3) só em último caso abre o wa.me (aí o texto passa pelo endereço).
+ */
+export async function enviarTexto(texto: string) {
+  if (navigator.share) {
+    try {
+      await navigator.share({ text: texto })
+      return
+    } catch (err) {
+      if ((err as DOMException)?.name === 'AbortError') return
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(texto)
+    avisar('Mensagem copiada. Abra o WhatsApp e cole na conversa.')
+    return
+  } catch {
+    window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank', 'noopener,noreferrer')
+  }
+}
+
+export function BotaoWhatsApp({ texto, rotulo = 'Mandar pelo WhatsApp' }: { texto: string; rotulo?: string }) {
+  return (
+    <button type="button" class="btn btn-whats" onClick={() => enviarTexto(texto)}>
+      {rotulo}
+    </button>
+  )
 }

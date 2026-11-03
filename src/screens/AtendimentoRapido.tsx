@@ -13,7 +13,9 @@ function maisUsados(servicos: Servico[], limite = 4): Servico[] {
   for (const l of e.lancamentos) {
     if (l.tipo === 'entrada' && diasEntre(l.data, hoje()) <= 60) conta.set(l.categoria, (conta.get(l.categoria) ?? 0) + 1)
   }
-  return [...servicos].sort((a, b) => (conta.get(b.id) ?? 0) - (conta.get(a.id) ?? 0)).slice(0, limite)
+  const escolhidos = new Set([...servicos].sort((a, b) => (conta.get(b.id) ?? 0) - (conta.get(a.id) ?? 0)).slice(0, limite).map((s) => s.id))
+  // a ordem na tela é sempre a da lista de serviços: o botão não muda de lugar depois de um lançamento
+  return servicos.filter((s) => escolhidos.has(s.id))
 }
 
 const FORMAS: { forma: Forma | 'fiado'; rotulo: string }[] = [
@@ -21,7 +23,7 @@ const FORMAS: { forma: Forma | 'fiado'; rotulo: string }[] = [
   { forma: 'dinheiro', rotulo: 'Dinheiro' },
   { forma: 'debito', rotulo: 'Débito' },
   { forma: 'credito', rotulo: 'Crédito' },
-  { forma: 'fiado', rotulo: 'Vai pagar depois' },
+  { forma: 'fiado', rotulo: 'Fiado (paga depois)' },
 ]
 
 /**
@@ -53,18 +55,18 @@ export function AtendimentoRapido() {
     setPedindoNome(false)
     setNome('')
     const sugerir = !fiado && e.config.reservaPorAtendimento > 0
+    const desfazer = { rotulo: 'Desfazer', fazer: () => removerLancamento(novo.id) }
     avisar(
-      `${s.nome} ${brlCurto(s.preco)} salvo.${sugerir ? ` Guardar ${brlCurto(e.config.reservaPorAtendimento)}?` : ''}`,
+      `Anotado: ${s.nome}, ${brlCurto(s.preco)}${fiado ? ' (fiado)' : ''}.${sugerir ? ` Guardar ${brlCurto(e.config.reservaPorAtendimento)}?` : ''}`,
       sugerir
-        ? {
+        ? [desfazer, {
             rotulo: 'Guardar',
             fazer: () => {
               const r = adicionarLancamento({ data: hoje(), tipo: 'reserva', valor: e.config.reservaPorAtendimento, taxa: 0, categoria: 'reserva', recebido: true })
-              avisar('Guardado na reserva 🐷', { rotulo: 'Desfazer', fazer: () => removerLancamento(r.id) })
+              avisar('Guardado na reserva.', { rotulo: 'Desfazer', fazer: () => removerLancamento(r.id) })
             },
-          }
-        : { rotulo: 'Desfazer', fazer: () => removerLancamento(novo.id) },
-      7000,
+          }]
+        : desfazer,
     )
   }
 
@@ -81,8 +83,8 @@ export function AtendimentoRapido() {
         ))}
       </div>
       {aberto && !pedindoNome && (
-        <div class="rapido-pagou" role="group" aria-label={`Como pagou o ${aberto.nome.toLowerCase()} de ${brl(aberto.preco)}?`}>
-          <p class="campo-rotulo">{aberto.nome} · {brl(aberto.preco)} — como pagou?</p>
+        <div class="rapido-pagou" role="group" aria-labelledby="rapido-pergunta">
+          <p class="campo-rotulo" id="rapido-pergunta">{aberto.nome}, {brl(aberto.preco)}: como a cliente pagou?</p>
           <div class="rapido-formas">
             {FORMAS.map((f) => (
               <button class={`btn ${f.forma === 'fiado' ? 'rapido-fiado' : 'btn-primario'}`}
@@ -97,8 +99,8 @@ export function AtendimentoRapido() {
       {aberto && pedindoNome && (
         <form class="rapido-pagou" onSubmit={(ev) => { ev.preventDefault(); if (nome.trim()) salvar(aberto, 'fiado', nome) }}>
           <label class="campo" for="rapido-nome">
-            <span class="campo-rotulo">Quem vai pagar depois?</span>
-            <input id="rapido-nome" class="campo-input" value={nome} maxLength={30} placeholder="Primeiro nome ou apelido" autoFocus
+            <span class="campo-rotulo">Quem ficou com o fiado?</span>
+            <input id="rapido-nome" class="campo-input" value={nome} maxLength={30} placeholder="Primeiro nome ou apelido" autoFocus autoComplete="off"
               onInput={(ev) => setNome((ev.currentTarget as HTMLInputElement).value)} />
           </label>
           <button class="btn btn-primario btn-largo" type="submit" disabled={!nome.trim()}>Salvar fiado de {brlCurto(aberto.preco)}</button>

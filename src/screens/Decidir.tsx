@@ -32,7 +32,9 @@ export function Decidir() {
   const [cena, setCena] = useState<Cena>('concorrente')
   const [desconto, setDesconto] = useState(15)
   const [aumentoProduto, setAumentoProduto] = useState(30)
-  const [novoPreco, setNovoPreco] = useState<Centavos | null>(s ? Math.round((s.preco * 1.1) / 500) * 500 : null)
+  // sugestão: +10% arredondado; volta para a sugestão sempre que o serviço muda
+  const [novoPrecoDigitado, setNovoPreco] = useState<Centavos | null>(null)
+  const novoPreco = novoPrecoDigitado ?? (s ? Math.max(s.preco + 500, Math.round((s.preco * 1.1) / 500) * 500) : null)
   const sugerido = s ? atendimentosPorMes(s.id) : 0
   const [qtdManual, setQtdManual] = useState<number | null>(null)
   const qtd = qtdManual ?? (sugerido || 8)
@@ -49,6 +51,8 @@ export function Decidir() {
     : null
 
   const [beneficio, setBeneficio] = useState<Centavos | null>(1000)
+  const [servicoInd, setServicoInd] = useState(servicos[0]?.id ?? '')
+  const sInd = e.servicos.find((x) => x.id === servicoInd) ?? servicos[0]
   const [visitas, setVisitas] = useState(4)
 
   return (
@@ -62,7 +66,7 @@ export function Decidir() {
           const m = margemServico(x, taxaMedia)
           return (
             <li>
-              <button class="linha linha-botao" onClick={() => ir(`servico/${x.id}`)} aria-label={`Editar ${x.nome}`}>
+              <button class="linha linha-botao" onClick={() => ir(`servico/${x.id}`)}>
                 <span class="linha-meio">
                   <span class="linha-titulo">{x.nome} · {brlCurto(x.preco)}</span>
                   <span class="linha-sub">produto {brlCurto(x.custoProduto)} · {x.minutos} min · {brlCurto(m.porHora)} por hora</span>
@@ -79,9 +83,9 @@ export function Decidir() {
       <button class="btn btn-largo" onClick={() => ir('servico/novo')}>+ Adicionar serviço</button>
 
       <h2 class="secao" id="ese">E se…?</h2>
-      <div class="cenas" role="tablist" aria-label="Situação para simular">
+      <div class="cenas" role="group" aria-label="Situação para simular">
         {CENAS.map((c) => (
-          <button role="tab" aria-selected={cena === c.id} class={`cena ${cena === c.id ? 'ativa' : ''}`} onClick={() => setCena(c.id)}>
+          <button aria-pressed={cena === c.id} class={`cena ${cena === c.id ? 'ativa' : ''}`} onClick={() => setCena(c.id)}>
             <b>{c.titulo}</b>
             <small>{c.texto}</small>
           </button>
@@ -92,7 +96,7 @@ export function Decidir() {
         <Cartao class="simulador">
           <label class="campo" for="servico-ese">
             <span class="campo-rotulo">Serviço</span>
-            <select id="servico-ese" class="campo-input" value={s.id} onChange={(ev) => { setServicoId((ev.currentTarget as HTMLSelectElement).value); setQtdManual(null) }}>
+            <select id="servico-ese" class="campo-input" value={s.id} onChange={(ev) => { setServicoId((ev.currentTarget as HTMLSelectElement).value); setQtdManual(null); setNovoPreco(null) }}>
               {servicos.map((x) => <option value={x.id}>{x.nome} ({brlCurto(x.preco)})</option>)}
             </select>
           </label>
@@ -102,49 +106,57 @@ export function Decidir() {
           <CampoNumero id="qtd" rotulo={`Quantos por mês? ${sugerido ? `(seu histórico: ${sugerido})` : ''}`} valor={qtd} aoMudar={(v) => setQtdManual(Math.round(v))} max={200} />
 
           <div class="antes-depois">
-            <div><small>Hoje sobra</small><b><Dinheiro v={res.antes.margem} /></b><small>por atendimento</small></div>
+            <div><small>Margem hoje</small><b><Dinheiro v={res.antes.margem} /></b><small>sobra por atendimento</small></div>
             <div aria-hidden="true" class="seta">→</div>
-            <div><small>Passaria a sobrar</small><b class={res.depois.margem < res.antes.margem ? 'valor-menos' : 'valor-mais'}><Dinheiro v={res.depois.margem} /></b><small>por atendimento</small></div>
+            <div><small>Margem depois</small><b class={res.depois.margem < res.antes.margem ? 'valor-menos' : 'valor-mais'}><Dinheiro v={res.depois.margem} /></b><small>sobra por atendimento</small></div>
           </div>
           <p class={`veredito ${res.impactoMes < 0 ? 'ruim' : 'bom'}`}>
-            No mês: <b><Dinheiro v={res.impactoMes} sinal /></b> no seu bolso.
+            Caixa do mês: <b><Dinheiro v={res.impactoMes} sinal /></b> no “Sobrou no salão”.
           </p>
           {res.impactoMes < 0 && (
             <p class="explica">
               {res.atendimentosParaEmpatar === null
                 ? 'Com esse valor, o serviço não cobre nem o produto. Nenhuma quantidade de clientes compensa.'
-                : <>Para sobrar o mesmo dinheiro, você precisaria de <b>{res.atendimentosParaEmpatar} atendimentos a mais</b> por mês ({qtd} → {qtd + res.atendimentosParaEmpatar}).</>}
+                : <>Clientela: para sobrar o mesmo dinheiro, você precisaria de <b>{res.atendimentosParaEmpatar} {res.atendimentosParaEmpatar === 1 ? 'atendimento' : 'atendimentos'} a mais</b> por mês ({qtd} → {qtd + res.atendimentosParaEmpatar}).</>}
             </p>
           )}
+          <p class="muted pequeno">Margem, Caixa e Clientela são os mesmos indicadores do jogo do Laboratório. É uma conta aproximada com os seus números. Não é consultoria: quem decide é você.</p>
           {cena === 'concorrente' && res.impactoMes < 0 && (
             <Nota>Antes de baixar o preço de tudo, dá para testar uma oferta com prazo, um pacote ou uma condição só para clientes antigas.</Nota>
           )}
           {cena === 'dolar' && (
-            <Nota>Compare o preço em mais de um fornecedor antes da compra do mês. <button class="link" onClick={() => ir('mais/fornecedores')}>Abrir fornecedores</button></Nota>
+            <>
+              <Nota>Compare o preço em mais de um fornecedor antes da compra do mês. Mais barato nem sempre compensa: veja se o resultado no cabelo é o mesmo.</Nota>
+              <button class="btn btn-largo" onClick={() => ir('mais/fornecedores')}>Abrir fornecedores</button>
+            </>
           )}
         </Cartao>
       )}
 
       <h2 class="secao">Desconto para quem indicar compensa?</h2>
       <Cartao class="simulador">
+        <label class="campo" for="servico-ind">
+          <span class="campo-rotulo">Serviço que a cliente nova costuma fazer</span>
+          <select id="servico-ind" class="campo-input" value={sInd?.id} onChange={(ev) => setServicoInd((ev.currentTarget as HTMLSelectElement).value)}>
+            {servicos.map((x) => <option value={x.id}>{x.nome} ({brlCurto(x.preco)})</option>)}
+          </select>
+        </label>
         <CampoValor id="beneficio" rotulo="Desconto que você dá para quem indica" valor={beneficio} aoMudar={setBeneficio} />
-        <CampoNumero id="visitas" rotulo="Quantas vezes a cliente nova volta no ano?" valor={visitas} aoMudar={(v) => setVisitas(Math.round(v))} max={52} />
-        {s && beneficio !== null && (() => {
-          const m = margemServico(s, taxaMedia).margem
+        <CampoNumero id="visitas" rotulo="Quantas vezes a cliente nova vem no ano (contando a primeira)?" valor={visitas} aoMudar={(v) => setVisitas(Math.max(1, Math.round(v)))} min={1} max={52} />
+        {sInd && beneficio !== null && (() => {
+          const m = margemServico(sInd, taxaMedia).margem
           const r = custoIndicacao(beneficio, m, visitas)
           return (
             <>
-              <p class="explica">Usando “{s.nome}”, que deixa {brl(m)} por atendimento:</p>
+              <p class="explica">“{sInd.nome}” deixa {brl(m)} de margem por atendimento. Com o desconto de {brl(beneficio)}:</p>
               <p class={`veredito ${r.valeAPena ? 'bom' : 'ruim'}`}>
                 Na 1ª visita sobra <b><Dinheiro v={r.ganhoPrimeiraVisita} /></b>. No ano: <b><Dinheiro v={r.ganhoNoAno} /></b>.
               </p>
-              <p class="muted pequeno">O desconto pesa no começo; o que paga a conta é a cliente voltar.</p>
+              <p class="muted pequeno">O desconto pesa na margem do começo; o que paga a conta é a cliente voltar. Conta aproximada, não é consultoria.</p>
             </>
           )
         })()}
       </Cartao>
-
-      <Nota>Estas contas são educativas. Não são consultoria financeira nem garantia de resultado.</Nota>
     </Pagina>
   )
 }

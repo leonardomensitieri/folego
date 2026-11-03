@@ -12,7 +12,4 @@ const atualizar = registerSW({
   onNeedRefresh() {
     avisar('Há uma versão nova do app.', { rotulo: 'Atualizar', fazer: () => atualizar(true) }, 20000)
   },
-  onOfflineReady() {
-    avisar('Pronto! O app agora funciona sem internet.')
-  },
 })
