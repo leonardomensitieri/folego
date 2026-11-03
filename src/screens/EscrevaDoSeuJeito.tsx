@@ -34,7 +34,6 @@ export function EscrevaDoSeuJeito() {
       taxa,
       forma: lido.tipo === 'entrada' ? lido.forma : undefined,
       categoria: lido.categoria,
-      descricao: lido.descricao,
       cliente: lido.cliente,
       recebido: lido.recebido,
     })

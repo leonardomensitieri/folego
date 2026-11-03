@@ -37,6 +37,8 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
         navigateFallback: 'index.html',
+        // o Laboratório é uma página à parte; não deve cair no app
+        navigateFallbackDenylist: [/\/laboratorio\//],
       },
     }),
   ],

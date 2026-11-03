@@ -212,6 +212,7 @@ main { padding-bottom: 32px; }
 .lista li + li { border-top: 1px solid var(--linha); }
 .linha { display: flex; align-items: center; gap: 12px; padding: 12px 14px; min-height: 60px; width: 100%; background: none; border: 0; text-align: left; }
 .linha-botao:active { background: var(--superficie-2); }
+a.linha { color: inherit; text-decoration: none; }
 .linha-icone { font-size: 1.3rem; width: 32px; display: grid; place-items: center; color: var(--primaria); flex-shrink: 0; }
 .linha-meio { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .linha-titulo { font-weight: 700; }

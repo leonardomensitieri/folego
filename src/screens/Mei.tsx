@@ -13,14 +13,13 @@ export function Mei() {
   const ano = Number(mesAtual.value.slice(0, 4))
   const fat = faturamentoAno(e.lancamentos, ano)
   const usado = fat / MEI.limiteAnual
-  // competências do ano até o mês passado (o DAS do mês atual vence no mês que vem)
+  // Competências desde que ela começou a usar o app (antes disso o app não sabe se pagou: não acusa atraso falso).
+  // O DAS do mês atual só vence no mês que vem, então a lista vai até o mês passado.
   const ultimaComp = somarMeses(mesAtual.value, -1)
+  const primeiroUso = e.lancamentos.reduce((min, l) => (l.data < min ? l.data : min), hoje()).slice(0, 7)
+  const inicio = [primeiroUso, `${ano}-01`, somarMeses(ultimaComp, -11)].sort().reverse()[0]
   const comps: string[] = []
-  for (let m = 1; m <= 12; m++) {
-    const c = `${ano}-${String(m).padStart(2, '0')}`
-    if (c <= ultimaComp) comps.push(c)
-  }
-  if (!comps.includes(ultimaComp)) comps.unshift(ultimaComp)
+  for (let c = inicio < ultimaComp ? inicio : ultimaComp; c <= ultimaComp; c = somarMeses(c, 1)) comps.push(c)
 
   return (
     <Pagina titulo="MEI em dia" voltarPara="mais">

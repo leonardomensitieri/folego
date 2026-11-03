@@ -17,7 +17,8 @@ export function estadoDemo(mesAtual: string, diaAtual: number): Estado {
     reservaPorAtendimento: 500,
     gastoMensalEstimado: 70_000,
     valorDAS: 8_200,
-    dasPagos: [somarMeses(mesAtual, -3), somarMeses(mesAtual, -2)],
+    // todos os DAS em dia, menos o do mês passado (que vence agora)
+    dasPagos: [-12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2].map((n) => somarMeses(mesAtual, n)),
   }
   let seq = 0
   // gerador determinístico: mesma demonstração sempre

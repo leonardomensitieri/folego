@@ -3,7 +3,7 @@ import { fiadosAbertos, saldoReserva } from '../domain/calc'
 import { brlCurto } from '../domain/money'
 import type { Centavos } from '../domain/types'
 import { apagarTudoReal, armazenamentoPersistente, atualizarConfig, estado, modo, prefs, recomecarDemo, temDadosReais, trocarModo } from '../state/store'
-import { IcAjuste, IcCaminhao, IcCasa, IcCofre, IcConversa, IcEscudo, IcInfo, IcNuvem, IcPessoa, IcRecibo } from '../ui/icons'
+import { IcAjuste, IcBalanca, IcCaminhao, IcCasa, IcCofre, IcConversa, IcEscudo, IcInfo, IcNuvem, IcPessoa, IcRecibo } from '../ui/icons'
 import { avisar, CampoNumero, CampoValor, Linha, linkWhatsApp, Nota, Pagina } from '../ui/kit'
 import { ir, voltar } from '../ui/router'
 import { estaInstalado } from './Instalar'
@@ -18,6 +18,15 @@ export function Mais() {
         <li><Linha icone={<IcPessoa />} titulo="A receber (fiado)" sub={fiado ? `${brlCurto(fiado)} para receber` : 'Ninguém devendo'} onClick={() => ir('mais/fiado')} /></li>
         <li><Linha icone={<IcCaminhao />} titulo="Fornecedores" sub="Compare preços antes de comprar" onClick={() => ir('mais/fornecedores')} /></li>
         <li><Linha icone={<IcRecibo />} titulo="MEI em dia" sub="DAS, limite e relatório mensal" onClick={() => ir('mais/mei')} /></li>
+        <li>
+          <a class="linha linha-botao" href={`${import.meta.env.BASE_URL}laboratorio/`}>
+            <span class="linha-icone" aria-hidden="true"><IcBalanca /></span>
+            <span class="linha-meio">
+              <span class="linha-titulo">Treinar decisões (Laboratório)</span>
+              <span class="linha-sub">Jogo dos choques: concorrente, dólar, secador...</span>
+            </span>
+          </a>
+        </li>
         <li><Linha icone={<IcConversa />} titulo="Mensagens prontas" sub="Aviso de ausência, retorno, cobrança" onClick={() => ir('mais/mensagens')} /></li>
         {!estaInstalado() && <li><Linha icone={<IcCasa />} titulo="Instalar no celular" sub="Abrir como app e proteger os dados" onClick={() => ir('mais/instalar')} /></li>}
         <li><Linha icone={<IcNuvem />} titulo="Cópia de segurança" sub="Guardar e voltar seus dados" onClick={() => ir('mais/backup')} /></li>
