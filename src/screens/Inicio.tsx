@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
-import { custoMensal, diasDeFolego, fiadosAbertos, primeiroMesDeUso, resumoDoMes, saldoReserva, situacaoDAS, vencimentoDAS } from '../domain/calc'
+import { custoMensal, diasDeFolego, divisaoDoSobrou, fiadosAbertos, primeiroMesDeUso, resumoDoMes, saldoReserva, situacaoDAS, vencimentoDAS } from '../domain/calc'
 import { dataCurta, nomeMesCurto, somarMeses, tituloMes } from '../domain/dates'
-import { brlCurto } from '../domain/money'
+import { brl } from '../domain/money'
 import { dataHoje, estado, mesAtual, modo, prefs } from '../state/store'
-import { IcAlerta, IcAltoFalante, IcCasinha, IcCelular, IcCofre, IcMenos, IcNuvem, IcPessoa, IcRecibo, IcSoma } from '../ui/icons'
+import { IcAlerta, IcAltoFalante, IcCelular, IcCofre, IcMenos, IcNuvem, IcPessoa, IcRecibo, IcSeta, IcSoma } from '../ui/icons'
 import { Barra, Cartao, Dinheiro } from '../ui/kit'
 import { ir } from '../ui/router'
 import { AtendimentoRapido } from './AtendimentoRapido'
@@ -74,21 +74,20 @@ export function Inicio() {
 
   // Um aviso por vez, o mais importante primeiro (tela simples para quem lê palavra por palavra).
   const avisos: Aviso[] = []
-  if (das === 'atrasado') avisos.push({ chave: 'das', forte: true, icone: <IcAlerta />, titulo: `DAS de ${nomeMesCurto(compDAS)} sem marcar como pago`, texto: `Venceu em ${dataCurta(vencimentoDAS(compDAS))}. Se já pagou, toque e marque. Se não, pague no app MEI para manter o INSS em dia.`, ir: 'mais/mei', rotulo: 'Abrir MEI em dia' })
+  if (das === 'atrasado') avisos.push({ chave: 'das', forte: true, icone: <IcAlerta />, titulo: `DAS de ${nomeMesCurto(compDAS)} sem marcar como pago`, texto: `Venceu em ${dataCurta(vencimentoDAS(compDAS))}. Já pagou? Toque para marcar.`, ir: 'mais/mei', rotulo: 'Abrir MEI em dia' })
   if (sugerirInstalar) avisos.push({ chave: 'instalar', icone: <IcCelular />, titulo: 'Instale o Fôlego no celular', texto: e.lancamentos.length > 0 ? 'Abre como app e funciona sem internet. No iPhone, faça uma cópia antes: o app instalado começa vazio.' : 'Abre como app e funciona sem internet. Instale antes de começar a anotar.', ir: 'mais/instalar', rotulo: 'Ver como instalar' })
-  if (totalFiado > 0) avisos.push({ chave: 'fiado', icone: <IcPessoa />, titulo: <>Fiado para receber: <Dinheiro v={totalFiado} curto /></>, texto: fiados.length === 1 ? '1 cliente vai pagar depois.' : `${fiados.length} clientes vão pagar depois.`, ir: 'mais/fiado', rotulo: 'Ver o fiado' })
-  if (das === 'vence-logo') avisos.push({ chave: 'das', icone: <IcRecibo />, titulo: 'DAS vence logo', texto: `Vence em ${dataCurta(vencimentoDAS(compDAS))}. Já pagou? Toque para marcar.`, ir: 'mais/mei', rotulo: 'Abrir MEI em dia' })
-  if (precisaBackup) avisos.push({ chave: 'backup', icone: <IcNuvem />, titulo: 'Faça uma cópia de segurança', texto: 'Seus dados ficam só neste celular. Guarde uma cópia no WhatsApp ou no Drive.', ir: 'mais/backup', rotulo: 'Fazer cópia de segurança' })
-  if (das === 'a-vencer') avisos.push({ chave: 'das', icone: <IcRecibo />, titulo: 'DAS do mês', texto: `Vence em ${dataCurta(vencimentoDAS(compDAS))}. Já pagou? Toque para marcar.`, ir: 'mais/mei', rotulo: 'Abrir MEI em dia' })
+  if (totalFiado > 0) avisos.push({ chave: 'fiado', icone: <IcPessoa />, titulo: <>Fiado para receber: <Dinheiro v={totalFiado} /></>, texto: fiados.length === 1 ? '1 cliente vai pagar depois.' : `${fiados.length} clientes vão pagar depois.`, ir: 'mais/fiado', rotulo: 'Ver o fiado' })
+  if (das === 'vence-logo') avisos.push({ chave: 'das', icone: <IcRecibo />, titulo: `DAS vence em ${dataCurta(vencimentoDAS(compDAS))}`, texto: 'Já pagou? Toque para marcar.', ir: 'mais/mei', rotulo: 'Abrir MEI em dia' })
+  if (precisaBackup) avisos.push({ chave: 'backup', icone: <IcNuvem />, titulo: 'Faça uma cópia de segurança', texto: 'Seus dados ficam só neste celular.', ir: 'mais/backup', rotulo: 'Fazer cópia de segurança' })
+  if (das === 'a-vencer') avisos.push({ chave: 'das', icone: <IcRecibo />, titulo: `DAS vence em ${dataCurta(vencimentoDAS(compDAS))}`, texto: 'Já pagou? Toque para marcar.', ir: 'mais/mei', rotulo: 'Abrir MEI em dia' })
   const aviso = avisos[0]
+  const divisao = divisaoDoSobrou(r)
 
   return (
     <section class="pagina inicio">
       <header class="topo topo-inicio">
-        <div>
-          <p class="sobretitulo">Seu salão em</p>
-          <h1>{tituloMes(mes)}</h1>
-        </div>
+        <p class="sobretitulo">Seu salão em</p>
+        <h1>{tituloMes(mes)}</h1>
       </header>
 
       <div class="conteudo">
@@ -96,15 +95,17 @@ export function Inicio() {
           <p class="destaque-rotulo">{r.sobrou < 0 ? 'Faltou no salão' : 'Sobrou no salão'}</p>
           <p class="destaque-valor"><Dinheiro v={r.sobrou} /></p>
           <div class="tres">
-            <span><small>Entrou</small><Dinheiro v={r.entrou} curto /></span>
-            <span><small>Saiu</small><Dinheiro v={r.saiu} curto /></span>
-            <span><small>Pra casa</small><Dinheiro v={r.praCasa} curto /></span>
+            <span><small>Entrou</small><Dinheiro v={r.entrou} /></span>
+            <span><small>Saiu</small><Dinheiro v={r.saiu} /></span>
+            <span><small>Pra casa</small><Dinheiro v={r.praCasa} /></span>
           </div>
-          {r.guardado > 0 && (
+          {divisao && (
             <p class="destaque-nota">
-              {r.sobrou >= 0
-                ? <>Desse valor, <Dinheiro v={r.guardado} curto /> já foram para a reserva.</>
-                : <>Mesmo assim, você guardou <Dinheiro v={r.guardado} curto /> na reserva neste mês.</>}
+              {divisao.tipo === 'dividido'
+                ? <>Na reserva: <b><Dinheiro v={divisao.naReserva} /></b> · No caixa: <b><Dinheiro v={divisao.noCaixa} /></b></>
+                : divisao.tipo === 'guardou-mais'
+                  ? <>Você guardou <b><Dinheiro v={divisao.naReserva} /></b> na reserva, mais do que sobrou neste mês.</>
+                  : <>Mesmo assim, você guardou <b><Dinheiro v={divisao.naReserva} /></b> na reserva neste mês.</>}
             </p>
           )}
         </Cartao>
@@ -120,17 +121,20 @@ export function Inicio() {
           <p class="explica">
             <b>Sobrou</b> = o que entrou (já sem a taxa da maquininha) − os gastos do salão − o que você tirou pra casa.
             Fiado só conta quando a cliente paga.
+            {divisao?.tipo === 'dividido' && ' “Na reserva” é a parte do que sobrou que você guardou neste mês; “No caixa” é o resto.'}
           </p>
         )}
 
         {aviso && (
-          <Cartao class={`alerta ${aviso.forte ? 'alerta-forte' : ''}`} onClick={() => ir(aviso.ir)} rotulo={aviso.rotulo}>
-            {aviso.icone}
-            <span>
+          <button class="cartao aviso" onClick={() => ir(aviso.ir)}>
+            <span class="aviso-icone" aria-hidden="true">{aviso.icone}</span>
+            <span class="aviso-texto">
               <b>{aviso.titulo}</b>
               <small>{aviso.texto}</small>
             </span>
-          </Cartao>
+            <span class="linha-seta" aria-hidden="true"><IcSeta size={20} /></span>
+            <span class="sr-only">{aviso.rotulo}</span>
+          </button>
         )}
         {aviso?.chave === 'instalar' && (
           <button class="btn btn-pequeno btn-sutil" onClick={() => (prefs.value = { ...prefs.value, ocultarInstalar: true })}>Agora não</button>
@@ -138,9 +142,9 @@ export function Inicio() {
 
         <AtendimentoRapido />
 
-        <div class="acoes-pequenas">
-          <button class="btn-pilula" onClick={() => ir('lancar/retirada')}><IcCasinha size={20} /> Tirei pra casa</button>
-          <button class="btn-pilula" onClick={() => ir('lancar/reserva')}><IcCofre size={20} /> Guardei na reserva</button>
+        <div class="atalhos">
+          <button class="link" onClick={() => ir('lancar/retirada')}>Tirei pra casa</button>
+          <button class="link" onClick={() => ir('lancar/reserva')}>Guardei na reserva</button>
         </div>
 
         {/* Recebi / Gastei ficam sempre à mão, presos logo acima do menu */}
@@ -158,23 +162,22 @@ export function Inicio() {
                 {reserva <= 0 ? 'Sem reserva ainda' : folego === 1 ? '1 dia de fôlego' : `${folego} dias de fôlego`}
               </p>
             </div>
-            <Dinheiro v={reserva} curto class="folego-valor" />
+            <Dinheiro v={reserva} class="folego-valor" />
           </div>
+          <Barra parte={reserva} total={e.config.metaReserva} rotulo="Quanto da meta da reserva já foi guardado" />
           <p class="cartao-sub">
             {reserva <= 0
-              ? `Guardar ${brlCurto(e.config.reservaPorAtendimento)} por atendimento já começa a sua reserva.`
-              : `Se o salão parar, a reserva daria para cerca de ${folego} ${folego === 1 ? 'dia' : 'dias'} de contas (conta aproximada).`}
+              ? `Guardar ${brl(e.config.reservaPorAtendimento)} por atendimento já começa a sua reserva.`
+              : `Meta: ${brl(e.config.metaReserva)}. Se o salão parar, dá para cerca de ${folego} ${folego === 1 ? 'dia' : 'dias'} de contas.`}
           </p>
-          <Barra parte={reserva} total={e.config.metaReserva} rotulo="Quanto da meta da reserva já foi guardado" />
-          <p class="cartao-sub pequeno">Meta: {brlCurto(e.config.metaReserva)}</p>
         </Cartao>
 
         {fechamento && (fechamento.entrou > 0 || fechamento.saiu > 0) && (
           <Cartao class="fechamento" onClick={() => ir(`movimentos/${mesPassado}`)} rotulo={`Ver o fechamento de ${nomeMesCurto(mesPassado)}`}>
             <p class="cartao-titulo">Fechamento de {nomeMesCurto(mesPassado)}</p>
             <p class="cartao-sub">
-              Entrou <b><Dinheiro v={fechamento.entrou} curto /></b> · saiu <b><Dinheiro v={fechamento.saiu} curto /></b> ·
-              pra casa <b><Dinheiro v={fechamento.praCasa} curto /></b> · sobrou <b class={fechamento.sobrou < 0 ? 'valor-menos' : 'valor-mais'}><Dinheiro v={fechamento.sobrou} curto /></b>
+              Entrou <b><Dinheiro v={fechamento.entrou} /></b> · saiu <b><Dinheiro v={fechamento.saiu} /></b> ·
+              pra casa <b><Dinheiro v={fechamento.praCasa} /></b> · sobrou <b class={fechamento.sobrou < 0 ? 'valor-menos' : 'valor-mais'}><Dinheiro v={fechamento.sobrou} /></b>
             </p>
           </Cartao>
         )}

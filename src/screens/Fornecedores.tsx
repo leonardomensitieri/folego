@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks'
 import { dataCurta, diasEntre, hoje } from '../domain/dates'
-import { brlCurto } from '../domain/money'
+import { brl } from '../domain/money'
 import type { Centavos, Fornecedor } from '../domain/types'
 import { estado, novoId, removerFornecedor, salvarFornecedor } from '../state/store'
 import { avisar, CampoTexto, CampoValor, Cartao, Nota, Pagina, Vazio } from '../ui/kit'
@@ -46,14 +46,14 @@ export function Fornecedores() {
               <ul>
                 {ordenada.map((f) => (
                   <li class={f.id === maisBarato.id && ordenada.length > 1 ? 'melhor' : ''}>
-                    <span>{f.nome}{f.id === maisBarato.id && ordenada.length > 1 && <small> · menor preço</small>}</span>
-                    <span>{brlCurto(f.preco)} <small>{dataCurta(f.data)}{diasEntre(f.data, hoje()) > 90 ? ' (antigo)' : ''}</small></span>
+                    <span class="fornecedor-nome">{f.nome}{f.id === maisBarato.id && ordenada.length > 1 && <small>menor preço</small>}</span>
+                    <span class="fornecedor-preco">{brl(f.preco)} <small>{dataCurta(f.data)}{diasEntre(f.data, hoje()) > 90 ? ' (antigo)' : ''}</small></span>
                     <button class="btn btn-pequeno btn-sutil" onClick={() => { removerFornecedor(f.id); avisar(`Preço de ${f.nome} apagado.`, { rotulo: 'Desfazer', fazer: () => salvarFornecedor(f) }) }}>Apagar</button>
                   </li>
                 ))}
               </ul>
               {ordenada.length > 1 && maisCaro.preco > maisBarato.preco && (
-                <p class="cartao-sub">Diferença: {brlCurto(maisCaro.preco - maisBarato.preco)} por unidade.</p>
+                <p class="cartao-sub">Diferença: {brl(maisCaro.preco - maisBarato.preco)} por unidade.</p>
               )}
               {ordenada.length === 1 && <p class="cartao-sub">Anote mais um lugar para comparar.</p>}
             </Cartao>

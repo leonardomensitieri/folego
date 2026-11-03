@@ -1,7 +1,7 @@
 import { signal } from '@preact/signals'
 import type { ComponentChildren, JSX } from 'preact'
 import { useEffect, useRef, useState } from 'preact/hooks'
-import { brl, brlCurto, parseValor } from '../domain/money'
+import { brl, parseValor } from '../domain/money'
 import type { Centavos } from '../domain/types'
 import { IcSeta, IcVoltar } from './icons'
 import { voltar } from './router'
@@ -55,22 +55,26 @@ export function Toast() {
 }
 
 // ---------- estrutura de página ----------
-export function Pagina({ titulo, voltarPara, children, acao }: {
+export function Pagina({ titulo, voltarPara, children, acao, class: cls = '' }: {
   titulo: string
   voltarPara?: string
   acao?: JSX.Element
+  class?: string
   children: ComponentChildren
 }) {
+  // Cabeçalho único: "‹ Voltar" à esquerda, título no centro da tela, a mesma altura em todas as telas.
   return (
-    <section class="pagina">
+    <section class={`pagina ${cls}`}>
       <header class="topo">
-        {voltarPara !== undefined ? (
-          <button class="btn-voltar" onClick={() => voltar(voltarPara)}>
-            <IcVoltar /> <span>Voltar</span>
-          </button>
-        ) : <span class="topo-espaco" />}
+        <span class="topo-lado">
+          {voltarPara !== undefined && (
+            <button class="btn-voltar" onClick={() => voltar(voltarPara)}>
+              <IcVoltar /> <span>Voltar</span>
+            </button>
+          )}
+        </span>
         <h1>{titulo}</h1>
-        {acao ?? <span class="topo-espaco" />}
+        <span class="topo-lado topo-direita">{acao}</span>
       </header>
       <div class="conteudo">{children}</div>
     </section>
@@ -94,10 +98,9 @@ export function Cartao({ children, class: cls = '', onClick, rotulo }: {
   return <div class={`cartao ${cls}`}>{children}</div>
 }
 
-export function Dinheiro({ v, curto, sinal: comSinal, class: cls = '' }: { v: Centavos; curto?: boolean; sinal?: boolean; class?: string }) {
-  const txt = curto ? brlCurto(Math.abs(v)) : brl(Math.abs(v))
+export function Dinheiro({ v, sinal: comSinal, class: cls = '' }: { v: Centavos; sinal?: boolean; class?: string }) {
   const prefixo = comSinal ? (v > 0 ? '+ ' : v < 0 ? '− ' : '') : v < 0 ? '− ' : ''
-  return <span class={`dinheiro ${cls}`}>{prefixo}{txt}</span>
+  return <span class={`dinheiro ${cls}`}>{prefixo}{brl(Math.abs(v))}</span>
 }
 
 // ---------- campo de valor em reais ----------
@@ -166,47 +169,61 @@ export function CampoTexto({ valor, aoMudar, rotulo, placeholder, id, dica, maxL
   )
 }
 
-export function CampoNumero({ valor, aoMudar, rotulo, id, sufixo, min = 0, max = 1000, passo = 1 }: {
+export function CampoNumero({ valor, aoMudar, rotulo, id, sufixo, dica, min = 0, max = 1000, passo = 1 }: {
   valor: number
   aoMudar: (v: number) => void
   rotulo: string
   id: string
   sufixo?: string
+  dica?: string
   min?: number
   max?: number
   passo?: number
 }) {
+  const texto = String(valor).replace('.', ',')
+  const ref = useRef<HTMLInputElement>(null)
+  const unidade = sufixo === '%' ? 'em por cento' : sufixo === 'min' ? 'em minutos' : sufixo
   return (
-    <label class="campo" for={id}>
-      <span class="campo-rotulo">{rotulo}</span>
-      <span class="campo-caixa">
-        <input id={id} inputMode="decimal" value={String(valor).replace('.', ',')}
-          onInput={(e) => {
-            const n = Number((e.currentTarget as HTMLInputElement).value.replace(',', '.'))
-            if (Number.isFinite(n)) aoMudar(Math.min(max, Math.max(min, n)))
-          }} />
-        {sufixo && <span class="campo-sufixo">{sufixo}</span>}
-      </span>
-      <span class="passos" aria-hidden="true">
-        <button type="button" tabIndex={-1} onClick={() => aoMudar(Math.max(min, +(valor - passo).toFixed(2)))}>−</button>
-        <button type="button" tabIndex={-1} onClick={() => aoMudar(Math.min(max, +(valor + passo).toFixed(2)))}>+</button>
-      </span>
-    </label>
+    <div class="campo">
+      <label class="campo-rotulo" for={id}>{rotulo}{unidade && <span class="sr-only"> ({unidade})</span>}</label>
+      {dica && <span class="campo-dica" id={`${id}-dica`}>{dica}</span>}
+      {/* − e + ficam fora do campo, redondos e grandes; quem usa teclado ou leitor de tela digita direto no campo */}
+      <div class="passador">
+        <button type="button" class="passo-btn" tabIndex={-1} aria-hidden="true" disabled={valor <= min}
+          onClick={() => aoMudar(Math.max(min, +(valor - passo).toFixed(2)))}>−</button>
+        <div class="campo-caixa" data-sufixo={sufixo ?? ''} onClick={() => ref.current?.focus()}>
+          <input ref={ref} id={id} inputMode="decimal" value={texto}
+            aria-describedby={dica ? `${id}-dica` : undefined}
+            onInput={(e) => {
+              const n = Number((e.currentTarget as HTMLInputElement).value.replace(',', '.'))
+              if (Number.isFinite(n)) aoMudar(Math.min(max, Math.max(min, n)))
+            }} />
+          {sufixo && <span class="campo-sufixo" aria-hidden="true">{sufixo}</span>}
+        </div>
+        <button type="button" class="passo-btn" tabIndex={-1} aria-hidden="true" disabled={valor >= max}
+          onClick={() => aoMudar(Math.min(max, +(valor + passo).toFixed(2)))}>+</button>
+      </div>
+    </div>
   )
 }
 
-/** Grupo de opções grandes, uma escolhida (ex.: forma de pagamento). */
-export function Escolha<T extends string>({ opcoes, valor, aoMudar, rotulo, colunas = 2 }: {
+/**
+ * Grupo de opções, uma escolhida (ex.: forma de pagamento). "grade" = colunas iguais;
+ * "linha" = botões do tamanho do texto, numa linha só (quebra só se não couber).
+ */
+export function Escolha<T extends string>({ opcoes, valor, aoMudar, rotulo, colunas = 2, estilo = 'grade', class: cls = '' }: {
   opcoes: { valor: T; rotulo: string; extra?: string }[]
   valor: T | undefined
   aoMudar: (v: T) => void
   rotulo: string
   colunas?: number
+  estilo?: 'grade' | 'linha'
+  class?: string
 }) {
   return (
-    <fieldset class="escolha">
+    <fieldset class={`escolha ${cls}`}>
       <legend class="campo-rotulo">{rotulo}</legend>
-      <div class="escolha-grade" style={{ '--cols': String(colunas) } as Record<string, string>}>
+      <div class={estilo === 'linha' ? 'escolha-linha' : 'escolha-grade'} style={estilo === 'grade' ? ({ '--cols': String(colunas) } as Record<string, string>) : undefined}>
         {opcoes.map((o) => (
           <button type="button" class={`opcao ${valor === o.valor ? 'ativa' : ''}`} aria-pressed={valor === o.valor}
             onClick={() => aoMudar(o.valor)}>
@@ -257,6 +274,16 @@ export function Linha({ titulo, sub, direita, onClick, icone }: {
     </>
   )
   return onClick ? <button class="linha linha-botao" onClick={onClick}>{corpo}</button> : <div class="linha">{corpo}</div>
+}
+
+/** "Mais detalhes" que abre ali mesmo: texto sublinhado (é toque) e uma seta que gira. */
+export function Detalhe({ resumo, children }: { resumo: string; children: ComponentChildren }) {
+  return (
+    <details class="detalhe-inline">
+      <summary><span>{resumo}</span><IcSeta size={18} /></summary>
+      {children}
+    </details>
+  )
 }
 
 export function Nota({ children, tom = 'info' }: { children: ComponentChildren; tom?: 'info' | 'alerta' | 'bom' }) {

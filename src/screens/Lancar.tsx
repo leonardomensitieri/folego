@@ -4,7 +4,7 @@ import { competenciaDAS, recebidoEmAoEditar, saldoReserva, taxaDaForma } from '.
 import { hoje, mesDe, nomeMesCurto, somarMeses } from '../domain/dates'
 import { LIMITES } from '../domain/backup'
 import { NOMES_FORMA, SERVICO_AVULSO } from '../domain/defaults'
-import { brl, brlCurto } from '../domain/money'
+import { brl } from '../domain/money'
 import type { Centavos, Forma, Lancamento, Tipo } from '../domain/types'
 import { adicionarLancamento, atualizarLancamento, estado, removerLancamento, restaurarLancamento } from '../state/store'
 import { avisar, CampoTexto, CampoValor, Escolha, Nota, Pagina } from '../ui/kit'
@@ -35,6 +35,9 @@ const TITULOS: Record<Tipo, string> = {
   reserva: 'Guardei na reserva',
   resgate: 'Tirei da reserva',
 }
+
+/** Os quatro tipos do controle segmentado no alto do formulário. */
+const NAS_ABAS: Tipo[] = ['entrada', 'saida', 'retirada', 'reserva']
 
 /** Formulário de lançamento. Também serve para editar (passando o id). */
 export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarId?: string }) {
@@ -127,7 +130,7 @@ export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarI
     voltar('')
     const desfazer = { rotulo: 'Desfazer', fazer: () => removerLancamento(novo.id) }
     avisar(
-      sugerir ? `Anotado! Guardar ${brlCurto(e.config.reservaPorAtendimento)} na reserva?` : 'Anotado!',
+      sugerir ? `Anotado! Guardar ${brl(e.config.reservaPorAtendimento)} na reserva?` : 'Anotado!',
       sugerir
         ? [desfazer, {
             rotulo: 'Guardar',
@@ -161,10 +164,11 @@ export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarI
   }
 
   return (
-    <Pagina titulo={editando ? `Mudar: ${ROTULO_TIPO[tipo]}` : TITULOS[tipo]} voltarPara="">
-      {!editando && (
+    <Pagina class="lancar" titulo={editando ? `Mudar: ${ROTULO_TIPO[tipo]}` : NAS_ABAS.includes(tipo) ? 'Anotar' : TITULOS[tipo]} voltarPara="">
+      {/* título neutro ("Anotar") + controle segmentado: o tipo aparece uma vez só, no controle */}
+      {!editando && NAS_ABAS.includes(tipo) && (
         <nav class="abas-tipo" aria-label="O que você quer anotar">
-          {(['entrada', 'saida', 'retirada', 'reserva'] as Tipo[]).map((t) => (
+          {NAS_ABAS.map((t) => (
             <button class={t === tipo ? 'ativa' : ''} aria-current={t === tipo ? 'page' : undefined}
               onClick={() => ir(`lancar/${t}`, { substituir: true })}>{ROTULO_TIPO[t]}</button>
           ))}
@@ -178,7 +182,7 @@ export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarI
             {servicos.map((s) => (
               <button type="button" class={`opcao ${categoria === s.id ? 'ativa' : ''}`} aria-pressed={categoria === s.id} onClick={() => escolherServico(s.id)}>
                 <span>{s.nome}</span>
-                <small>{brlCurto(s.preco)}</small>
+                <small>{brl(s.preco)}</small>
               </button>
             ))}
             <button type="button" class={`opcao ${categoria === SERVICO_AVULSO ? 'ativa' : ''}`} aria-pressed={categoria === SERVICO_AVULSO} onClick={() => setCategoria(SERVICO_AVULSO)}>
@@ -215,7 +219,7 @@ export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarI
       {ehDAS && <p class="campo-dica">Normalmente é o do mês passado. Assim o app marca certo qual DAS já foi pago.</p>}
 
       {tipo === 'retirada' && (
-        <Nota>Separar o dinheiro da casa do dinheiro do salão ajuda a saber quanto o salão rende de verdade. {e.config.salarioMensal > 0 ? `Seu combinado: ${brlCurto(e.config.salarioMensal)} por mês.` : 'Você ainda não combinou um salário. Dá para combinar em Ajustes.'}</Nota>
+        <Nota>Separar o dinheiro da casa do dinheiro do salão ajuda a saber quanto o salão rende de verdade. {e.config.salarioMensal > 0 ? `Seu combinado: ${brl(e.config.salarioMensal)} por mês.` : 'Você ainda não combinou um salário. Dá para combinar em Ajustes.'}</Nota>
       )}
       {tipo === 'reserva' && <Nota tom="bom">Dinheiro guardado é fôlego para quando um imprevisto chegar, como o secador quebrar.</Nota>}
       {tipo === 'resgate' && <Nota>Use a reserva só para emergência do salão. Depois, volte a guardar aos poucos.</Nota>}
@@ -227,13 +231,13 @@ export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarI
           rotulo="Como pagou?"
           valor={forma}
           aoMudar={setForma}
-          colunas={3}
+          estilo="linha"
           opcoes={[
             { valor: 'pix', rotulo: 'Pix' },
             { valor: 'dinheiro', rotulo: 'Dinheiro' },
-            { valor: 'debito', rotulo: 'Débito', extra: `${String(e.config.taxas.debito).replace('.', ',')}%` },
-            { valor: 'credito', rotulo: 'Crédito', extra: `${String(e.config.taxas.credito).replace('.', ',')}%` },
-            { valor: 'fiado', rotulo: 'Fiado', extra: 'paga depois' },
+            { valor: 'debito', rotulo: 'Débito' },
+            { valor: 'credito', rotulo: 'Crédito' },
+            { valor: 'fiado', rotulo: 'Fiado' },
           ]}
         />
       )}
@@ -241,6 +245,7 @@ export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarI
       {ehEntrada && taxa > 0 && valor && (
         <p class="calculo">A maquininha fica com {brl(taxa)}. Para você: <b>{brl(valor - taxa)}</b>.</p>
       )}
+      {ehEntrada && forma === 'fiado' && <p class="campo-dica">Fiado: a cliente paga depois. Só entra no caixa quando ela pagar.</p>}
 
       {(forma === 'fiado' || (ehEntrada && cliente)) && (
         <CampoTexto id="cliente" rotulo={forma === 'fiado' ? 'Quem ficou com o fiado?' : 'Cliente (opcional)'} valor={cliente} aoMudar={setCliente}
@@ -258,7 +263,7 @@ export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarI
           if (v === 'hoje') setData(hoje())
           else if (v === 'ontem') setData(ontem())
         }}
-        colunas={3}
+        estilo="linha"
         opcoes={[{ valor: 'hoje', rotulo: 'Hoje' }, { valor: 'ontem', rotulo: 'Ontem' }, { valor: 'outro', rotulo: 'Outro dia' }]}
       />
       {outroDia && <label class="campo" for="data">
@@ -272,7 +277,7 @@ export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarI
 
       <div class="rodape-acoes rodape-fixo">
         <button class="btn btn-primario btn-largo" onClick={salvar}>
-          {editando ? 'Salvar alteração' : valor ? `Salvar ${brlCurto(valor)}${ehEntrada && forma ? ` · ${forma === 'fiado' ? 'fiado' : NOMES_FORMA[forma]}` : ''}` : 'Salvar'}
+          {editando ? 'Salvar alteração' : valor ? `Salvar ${brl(valor)}${ehEntrada && forma ? ` · ${forma === 'fiado' ? 'fiado' : NOMES_FORMA[forma]}` : ''}` : 'Salvar'}
         </button>
         {editando && <button class="btn btn-perigo btn-largo" onClick={apagar}>Apagar esta anotação</button>}
       </div>

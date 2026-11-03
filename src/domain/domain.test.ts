@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { brl, brlCurto, parseValor } from './money'
+import { brl, brlComCentavos, parseValor } from './money'
 import { dataValida, diasEntre, hoje, mesValido, somarMeses } from './dates'
 import {
-  acharFiado, competenciaDAS, custoIndicacao, custoMensal, diasDeFolego, faturamentoAno, feriadosNacionais, fiadosAbertos, margemServico,
+  acharFiado, competenciaDAS, divisaoDoSobrou, custoIndicacao, custoMensal, diasDeFolego, faturamentoAno, feriadosNacionais, fiadosAbertos, margemServico,
   primeiroMesDeUso, receitaBrutaMes, reservaFicaNegativa, resumoDoMes, saldoReserva, simular, situacaoDAS, taxaDaForma, vencimentoDAS,
 } from './calc'
 import { interpretar } from './parser'
@@ -19,8 +19,19 @@ const L = (p: Partial<Lancamento>): Lancamento => ({
 describe('dinheiro', () => {
   it('formata em reais', () => {
     expect(brl(123456)).toBe('R$\u00a01.234,56')
-    expect(brlCurto(5000)).toBe('R$\u00a050')
-    expect(brlCurto(5050)).toBe('R$\u00a050,50')
+    expect(brl(5050)).toBe('R$\u00a050,50')
+    expect(brl(886)).toBe('R$\u00a08,86')
+  })
+  it('regra única: valor redondo sem ",00", em qualquer lugar do app', () => {
+    expect(brl(5000)).toBe('R$\u00a050')
+    expect(brl(11000)).toBe('R$\u00a0110')
+    expect(brl(974000)).toBe('R$\u00a09.740')
+    expect(brl(0)).toBe('R$\u00a00')
+    expect(brl(5010)).toBe('R$\u00a050,10')
+  })
+  it('documento impresso mantém os centavos', () => {
+    expect(brlComCentavos(5000)).toBe('R$\u00a050,00')
+    expect(brlComCentavos(123456)).toBe('R$\u00a01.234,56')
   })
   it('entende o jeito que as pessoas digitam', () => {
     expect(parseValor('50')).toBe(5000)
@@ -124,10 +135,15 @@ describe('taxas, margem e "e se?"', () => {
     expect(r.depois.margem).toBe(3000)
     expect(r.impactoMes).toBe(-20000)
     expect(r.atendimentosParaEmpatar).toBe(7) // 80000/3000 = 26,7 → 27 - 20
+    // o que a tela mostra ("Preço R$ 50 → R$ 40") bate com a conta
+    expect(r.precoDepois).toBe(4000)
+    expect(r.custoProdutoDepois).toBe(1000)
   })
   it('alta do produto (dólar) reduz a margem', () => {
     const r = simular({ servico: { preco: 18000, custoProduto: 4500, minutos: 180 }, atendimentosMes: 4, aumentoProdutoPct: 30, taxaMediaPct: 0 })
     expect(r.depois.margem).toBe(18000 - 5850)
+    expect(r.custoProdutoDepois).toBe(5850)
+    expect(r.precoDepois).toBe(18000)
   })
   it('margem zerada não tem como empatar', () => {
     const r = simular({ servico: { preco: 1000, custoProduto: 900, minutos: 30 }, atendimentosMes: 10, descontoPct: 50, taxaMediaPct: 0 })
@@ -422,5 +438,25 @@ describe('mês no endereço', () => {
     expect(dataValida('2028-02-29')).toBe(true)
     expect(dataValida('2026-02-29')).toBe(false)
     expect(dataValida('2026-02-31')).toBe(false)
+  })
+})
+
+describe('divisão do "Sobrou" (tela inicial e Meu mês)', () => {
+  it('reserva + caixa dá exatamente o Sobrou, sem a pessoa fazer conta', () => {
+    const lancs = [
+      L({ valor: 5000 }), L({ valor: 4000, data: '2026-11-02' }), L({ valor: 2000, forma: 'debito', taxa: 0 }),
+      L({ tipo: 'reserva', categoria: 'reserva', valor: 1000 }), L({ tipo: 'reserva', categoria: 'reserva', valor: 500 }),
+    ]
+    const r = resumoDoMes(lancs, '2026-11')
+    const d = divisaoDoSobrou(r)
+    expect(d).toEqual({ tipo: 'dividido', naReserva: 1500, noCaixa: 9500 })
+    if (d?.tipo === 'dividido') expect(d.naReserva + d.noCaixa).toBe(r.sobrou)
+  })
+  it('guardou mais do que sobrou, mês negativo e nada guardado', () => {
+    expect(divisaoDoSobrou({ sobrou: 1000, guardado: 1500 })).toEqual({ tipo: 'guardou-mais', naReserva: 1500 })
+    expect(divisaoDoSobrou({ sobrou: -500, guardado: 1000 })).toEqual({ tipo: 'faltou', naReserva: 1000 })
+    expect(divisaoDoSobrou({ sobrou: 5000, guardado: 0 })).toBeNull()
+    expect(divisaoDoSobrou({ sobrou: 5000, guardado: -2000 })).toBeNull()
+    expect(divisaoDoSobrou({ sobrou: 1500, guardado: 1500 })).toEqual({ tipo: 'dividido', naReserva: 1500, noCaixa: 0 })
   })
 })

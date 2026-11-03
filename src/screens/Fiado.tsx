@@ -44,7 +44,7 @@ function ItemFiado({ l }: { l: Lancamento }) {
         <Dinheiro v={l.valor} class="fiado-valor" />
       </div>
       <div class="fiado-botoes">
-        <button class="btn btn-pequeno" aria-expanded={aberto === 'lembrar'} onClick={() => setAberto(aberto === 'lembrar' ? null : 'lembrar')}>Lembrar</button>
+        <button class="btn btn-pequeno" aria-expanded={aberto === 'lembrar'} onClick={() => setAberto(aberto === 'lembrar' ? null : 'lembrar')}>Lembrar pelo WhatsApp</button>
         <button class="btn btn-pequeno btn-primario" aria-expanded={aberto === 'pagou'} onClick={() => setAberto(aberto === 'pagou' ? null : 'pagou')}>Ela pagou</button>
       </div>
       {aberto === 'lembrar' && (

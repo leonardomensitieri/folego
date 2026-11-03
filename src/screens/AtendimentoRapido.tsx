@@ -1,7 +1,7 @@
-import { useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { taxaDaForma } from '../domain/calc'
 import { diasEntre, hoje } from '../domain/dates'
-import { brl, brlCurto } from '../domain/money'
+import { brl } from '../domain/money'
 import type { Forma, Servico } from '../domain/types'
 import { adicionarLancamento, estado, removerLancamento } from '../state/store'
 import { avisar } from '../ui/kit'
@@ -24,7 +24,7 @@ const FORMAS: { forma: Forma | 'fiado'; rotulo: string }[] = [
   { forma: 'dinheiro', rotulo: 'Dinheiro' },
   { forma: 'debito', rotulo: 'Débito' },
   { forma: 'credito', rotulo: 'Crédito' },
-  { forma: 'fiado', rotulo: 'Fiado · paga depois' },
+  { forma: 'fiado', rotulo: 'Fiado' },
 ]
 
 /**
@@ -37,6 +37,14 @@ export function AtendimentoRapido() {
   const [aberto, setAberto] = useState<Servico | null>(null)
   const [pedindoNome, setPedindoNome] = useState(false)
   const [nome, setNome] = useState('')
+
+  // o painel "como a cliente pagou?" abre perto das barras fixas: rola só o necessário para os botões aparecerem
+  const painel = useRef<HTMLDivElement & HTMLFormElement>(null)
+  useEffect(() => {
+    if (!aberto) return
+    const reduzir = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    painel.current?.scrollIntoView({ block: 'nearest', behavior: reduzir ? 'auto' : 'smooth' })
+  }, [aberto?.id, pedindoNome])
 
   if (servicos.length === 0) return null
 
@@ -59,7 +67,7 @@ export function AtendimentoRapido() {
     const sugerir = !fiado && e.config.reservaPorAtendimento > 0
     const desfazer = { rotulo: 'Desfazer', fazer: () => removerLancamento(novo.id) }
     avisar(
-      `Anotado: ${s.nome}, ${brlCurto(s.preco)}${fiado ? ' (fiado)' : ''}.${sugerir ? ` Guardar ${brlCurto(e.config.reservaPorAtendimento)}?` : ''}`,
+      `Anotado: ${s.nome}, ${brl(s.preco)}${fiado ? ' (fiado)' : ''}.${sugerir ? ` Guardar ${brl(e.config.reservaPorAtendimento)}?` : ''}`,
       sugerir
         ? [desfazer, {
             rotulo: 'Guardar',
@@ -80,32 +88,31 @@ export function AtendimentoRapido() {
           <button class={`opcao ${aberto?.id === s.id ? 'ativa' : ''}`} aria-pressed={aberto?.id === s.id} aria-expanded={aberto?.id === s.id}
             onClick={() => { setAberto(aberto?.id === s.id ? null : s); setPedindoNome(false) }}>
             <span>{s.nome}</span>
-            <small>{brlCurto(s.preco)}</small>
+            <small>{brl(s.preco)}</small>
           </button>
         ))}
       </div>
       {aberto && !pedindoNome && (
-        <div class="rapido-pagou" role="group" aria-labelledby="rapido-pergunta">
+        <div class="rapido-pagou" role="group" aria-labelledby="rapido-pergunta" ref={painel}>
           <p class="campo-rotulo" id="rapido-pergunta">{aberto.nome}, {brl(aberto.preco)}: como a cliente pagou?</p>
-          <div class="rapido-formas">
+          <div class="escolha-linha">
             {FORMAS.map((f) => (
-              <button class={`btn ${f.forma === 'fiado' ? 'rapido-fiado' : 'btn-primario'}`}
-                onClick={() => (f.forma === 'fiado' ? setPedindoNome(true) : salvar(aberto, f.forma))}>
+              <button class="opcao" onClick={() => (f.forma === 'fiado' ? setPedindoNome(true) : salvar(aberto, f.forma))}>
                 {f.rotulo}
               </button>
             ))}
           </div>
-          <p class="campo-dica">Valor diferente? Use o botão “Recebi”.</p>
+          <p class="campo-dica">Fiado: a cliente paga depois. Valor diferente? Use o botão “Recebi”.</p>
         </div>
       )}
       {aberto && pedindoNome && (
-        <form class="rapido-pagou" onSubmit={(ev) => { ev.preventDefault(); if (nome.trim()) salvar(aberto, 'fiado', nome) }}>
+        <form class="rapido-pagou" ref={painel} onSubmit={(ev) => { ev.preventDefault(); if (nome.trim()) salvar(aberto, 'fiado', nome) }}>
           <label class="campo" for="rapido-nome">
             <span class="campo-rotulo">Quem ficou com o fiado?</span>
             <input id="rapido-nome" class="campo-input" value={nome} maxLength={30} placeholder="Primeiro nome ou apelido" autoFocus autoComplete="off"
               onInput={(ev) => setNome((ev.currentTarget as HTMLInputElement).value)} />
           </label>
-          <button class="btn btn-primario btn-largo" type="submit" disabled={!nome.trim()}>Salvar fiado de {brlCurto(aberto.preco)}</button>
+          <button class="btn btn-primario btn-largo" type="submit" disabled={!nome.trim()}>Salvar fiado de {brl(aberto.preco)}</button>
         </form>
       )}
     </section>

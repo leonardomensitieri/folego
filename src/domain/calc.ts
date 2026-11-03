@@ -94,6 +94,23 @@ export function resumoDoMes(lancs: Lancamento[], mes: string): ResumoMes {
   }
 }
 
+/** Como o "Sobrou" se divide entre o que foi para a reserva neste mês e o que ficou no caixa. */
+export type DivisaoSobrou =
+  /** naReserva + noCaixa = sobrou (a tela mostra as duas partes, sem a pessoa precisar fazer conta). */
+  | { tipo: 'dividido'; naReserva: Centavos; noCaixa: Centavos }
+  /** Guardou mais do que sobrou neste mês (parte veio de dinheiro de antes). */
+  | { tipo: 'guardou-mais'; naReserva: Centavos }
+  /** O mês ficou negativo, mas ela guardou mesmo assim. */
+  | { tipo: 'faltou'; naReserva: Centavos }
+
+/** null quando não guardou nada no mês (ou mais tirou do que pôs na reserva): não há divisão para mostrar. */
+export function divisaoDoSobrou(r: Pick<ResumoMes, 'sobrou' | 'guardado'>): DivisaoSobrou | null {
+  if (r.guardado <= 0) return null
+  if (r.sobrou < 0) return { tipo: 'faltou', naReserva: r.guardado }
+  if (r.guardado > r.sobrou) return { tipo: 'guardou-mais', naReserva: r.guardado }
+  return { tipo: 'dividido', naReserva: r.guardado, noCaixa: r.sobrou - r.guardado }
+}
+
 export function saldoReserva(lancs: Lancamento[]): Centavos {
   let s = 0
   for (const l of lancs) {
@@ -191,6 +208,9 @@ export interface CenarioEseResultado {
   impactoMes: Centavos
   /** Atendimentos a mais por mês para sobrar o mesmo dinheiro. null = impossível (margem zerou). */
   atendimentosParaEmpatar: number | null
+  /** Só para mostrar na tela: o preço cobrado e o produto por atendimento depois da mudança. */
+  precoDepois: Centavos
+  custoProdutoDepois: Centavos
 }
 
 export interface CenarioEse {
@@ -217,7 +237,7 @@ export function simular(c: CenarioEse): CenarioEseResultado {
     atendimentosParaEmpatar =
       depois.margem <= 0 ? null : Math.ceil((antes.margem * c.atendimentosMes) / depois.margem - c.atendimentosMes)
   }
-  return { antes, depois, impactoMes, atendimentosParaEmpatar }
+  return { antes, depois, impactoMes, atendimentosParaEmpatar, precoDepois: preco, custoProdutoDepois: custoProduto }
 }
 
 /**

@@ -1,4 +1,4 @@
-import { competenciaDAS, resumoDoMes } from '../domain/calc'
+import { competenciaDAS, divisaoDoSobrou, resumoDoMes } from '../domain/calc'
 import { dataCurta, diaDaSemana, mesDe, mesValido, nomeMesCurto, somarMeses, tituloMes } from '../domain/dates'
 import type { Lancamento } from '../domain/types'
 import { estado, mesAtual } from '../state/store'
@@ -64,13 +64,19 @@ export function Movimentos({ mes: mesParam }: { mes?: string }) {
     .sort((a, b) => diaCaixa(b).localeCompare(diaCaixa(a)) || b.criadoEm - a.criadoEm)
   const dias = [...new Set(doMes.map(diaCaixa))]
   const podeAvancar = mes < mesAtual.value
+  const divisao = divisaoDoSobrou(r)
 
   return (
     <section class="pagina">
       <header class="topo">
-        <button class="btn-voltar" onClick={() => ir(`movimentos/${somarMeses(mes, -1)}`, { substituir: true })}><IcVoltar /> <span>{nomeMesCurto(somarMeses(mes, -1)).slice(0, 3)}</span></button>
+        <span class="topo-lado">
+          <button class="btn-voltar" aria-label={`Mês anterior: ${nomeMesCurto(somarMeses(mes, -1))}`} onClick={() => ir(`movimentos/${somarMeses(mes, -1)}`, { substituir: true })}><IcVoltar /> <span>{nomeMesCurto(somarMeses(mes, -1)).slice(0, 3)}</span></button>
+        </span>
         <h1>{tituloMes(mes)}</h1>
-        <button class="btn-voltar" disabled={!podeAvancar} onClick={() => ir(`movimentos/${somarMeses(mes, 1)}`, { substituir: true })}><span>{nomeMesCurto(somarMeses(mes, 1)).slice(0, 3)}</span> <IcSeta /></button>
+        {/* mês que ainda não chegou não tem o que mostrar: o botão some em vez de ficar apagado */}
+        <span class="topo-lado topo-direita">
+          {podeAvancar && <button class="btn-voltar" aria-label={`Próximo mês: ${nomeMesCurto(somarMeses(mes, 1))}`} onClick={() => ir(`movimentos/${somarMeses(mes, 1)}`, { substituir: true })}><span>{nomeMesCurto(somarMeses(mes, 1)).slice(0, 3)}</span> <IcSeta /></button>}
+        </span>
       </header>
       <div class="conteudo">
         <Cartao class="resumo-mes">
@@ -80,37 +86,45 @@ export function Movimentos({ mes: mesParam }: { mes?: string }) {
             <div><dt>Pra casa</dt><dd><Dinheiro v={-r.praCasa} /></dd></div>
             <div class="total"><dt>{r.sobrou < 0 ? 'Faltou no salão' : 'Sobrou no salão'}</dt><dd><Dinheiro v={r.sobrou} /></dd></div>
           </dl>
+          {divisao && (
+            <p class="cartao-sub">
+              {divisao.tipo === 'dividido'
+                ? <>Na reserva: <b><Dinheiro v={divisao.naReserva} /></b> · No caixa: <b><Dinheiro v={divisao.noCaixa} /></b></>
+                : divisao.tipo === 'guardou-mais'
+                  ? <>Você guardou <b><Dinheiro v={divisao.naReserva} /></b> na reserva, mais do que sobrou neste mês.</>
+                  : <>Mesmo assim, você guardou <b><Dinheiro v={divisao.naReserva} /></b> na reserva neste mês.</>}
+            </p>
+          )}
           <p class="cartao-sub">
-            {r.atendimentos} {r.atendimentos === 1 ? 'atendimento' : 'atendimentos'} · a maquininha ficou com {brl(r.taxas)}
-            {r.guardado > 0 && (r.sobrou >= 0
-              ? <> · do que sobrou, <Dinheiro v={r.guardado} curto /> foi para a reserva</>
-              : <> · mesmo assim, <Dinheiro v={r.guardado} curto /> foi para a reserva</>)}
+            {r.atendimentos} {r.atendimentos === 1 ? 'atendimento' : 'atendimentos'}
+            {r.taxas > 0 && <> · a maquininha ficou com {brl(r.taxas)}</>}
           </p>
         </Cartao>
 
         {r.porCategoria.length > 0 && (
           <details class="detalhe">
-            <summary>Para onde foi o dinheiro</summary>
+            <summary>Para onde foi o dinheiro <IcSeta size={20} /></summary>
             <ul class="barras">
               {r.porCategoria.map((c) => (
                 <li>
                   <span>{nomeCategoria(e, { tipo: 'saida', categoria: c.categoria })}</span>
                   <span class="barrinha"><span style={{ width: `${(c.total / r.saiu) * 100}%` }} /></span>
-                  <Dinheiro v={c.total} curto />
+                  <Dinheiro v={c.total} />
                 </li>
               ))}
             </ul>
           </details>
         )}
-        {r.porServico.length > 0 && (
+        {doMes.length > 0 && (
           <details class="detalhe">
-            <summary>O que mais trouxe dinheiro</summary>
+            <summary>O que mais trouxe dinheiro <IcSeta size={20} /></summary>
+            {r.porServico.length === 0 && <p class="muted">Nenhum atendimento pago neste mês ainda. O fiado entra aqui quando a cliente pagar.</p>}
             <ul class="barras">
               {r.porServico.map((s) => (
                 <li>
                   <span>{nomeCategoria(e, { tipo: 'entrada', categoria: s.categoria })} <small>({s.quantidade}x)</small></span>
                   <span class="barrinha boa"><span style={{ width: `${(s.total / r.entrou) * 100}%` }} /></span>
-                  <Dinheiro v={s.total} curto />
+                  <Dinheiro v={s.total} />
                 </li>
               ))}
             </ul>

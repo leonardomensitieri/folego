@@ -1,7 +1,8 @@
 import { custoMensal, diasDeFolego, saldoReserva } from '../domain/calc'
-import { brlCurto } from '../domain/money'
+import { brl } from '../domain/money'
 import { estado, mesAtual } from '../state/store'
-import { Barra, Cartao, Dinheiro, Nota, Pagina, Vazio } from '../ui/kit'
+import { Barra, Cartao, Dinheiro, Pagina, Vazio } from '../ui/kit'
+import { IcSeta } from '../ui/icons'
 import { ir } from '../ui/router'
 import { ListaLancamentos } from './Movimentos'
 import { nomeDaReserva } from './Mais'
@@ -18,7 +19,7 @@ export function Reserva() {
   const movs = e.lancamentos.filter((l) => l.tipo === 'reserva' || l.tipo === 'resgate').sort((a, b) => b.data.localeCompare(a.data) || b.criadoEm - a.criadoEm)
 
   return (
-    <Pagina titulo={`${nomeDaReserva()} (fôlego)`} voltarPara="mais">
+    <Pagina titulo={nomeDaReserva()} voltarPara="mais">
       <Cartao class="destaque">
         <p class="destaque-rotulo">Guardado</p>
         <p class="destaque-valor"><Dinheiro v={saldo} /></p>
@@ -27,12 +28,12 @@ export function Reserva() {
         </p>
         <Barra parte={saldo} total={meta} rotulo="Progresso da meta" />
         <p class="cartao-sub pequeno">
-          Meta {brlCurto(meta)} · {falta > 0 ? `faltam ${brlCurto(falta)}` : 'meta alcançada! 🎉'}
+          Meta {brl(meta)} · {falta > 0 ? `faltam ${brl(falta)}` : 'meta alcançada! 🎉'}
         </p>
       </Cartao>
 
       {falta > 0 && atendimentosParaMeta !== null && (
-        <Nota tom="bom">Guardando {brlCurto(porAtend)} por atendimento, você chega na meta em cerca de {atendimentosParaMeta} atendimentos.</Nota>
+        <p class="muted">Guardando {brl(porAtend)} por atendimento, você chega na meta em cerca de {atendimentosParaMeta} atendimentos.</p>
       )}
 
       <div class="acoes-grandes">
@@ -41,9 +42,9 @@ export function Reserva() {
       </div>
 
       <details class="detalhe">
-        <summary>Como o fôlego é calculado</summary>
+        <summary>Como o fôlego é calculado <IcSeta size={20} /></summary>
         <p class="explica">
-          Fôlego = dinheiro guardado ÷ custo de um dia. Para não prometer fôlego a mais, o custo do mês ({brlCurto(custo)}) é o
+          Fôlego = dinheiro guardado ÷ custo de um dia. Para não prometer fôlego a mais, o custo do mês ({brl(custo)}) é o
           maior entre dois números: o que você pôs nos Ajustes (gasto do salão mais o seu salário) e a média dos últimos 3 meses
           (gastos do salão mais o seu salário, ou o que você tirou pra casa, se foi mais). Sem histórico, vale o dos Ajustes.
         </p>

@@ -2,15 +2,18 @@ import type { Centavos } from './types'
 
 const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
-/** "R$ 1.234,56" com espaço que não quebra: o "R$" nunca fica sozinho no fim da linha. */
+/**
+ * A regra única de dinheiro do app: "R$ 50" quando é valor redondo e "R$ 50,50" quando tem centavos.
+ * Espaço que não quebra: o "R$" nunca fica sozinho no fim da linha.
+ */
 export function brl(c: Centavos): string {
-  return fmt.format(c / 100).replace(/\s/g, '\u00a0')
+  const s = brlComCentavos(c)
+  return c % 100 === 0 ? s.replace(/,00$/, '') : s
 }
 
-/** "R$ 1.234,56" sem centavos quando é valor redondo: "R$ 50". */
-export function brlCurto(c: Centavos): string {
-  if (c % 100 === 0) return brl(c).replace(/,00$/, '')
-  return brl(c)
+/** "R$ 50,00" sempre com centavos: só para documento impresso (relatório do MEI), que pede o valor completo. */
+export function brlComCentavos(c: Centavos): string {
+  return fmt.format(c / 100).replace(/\s/g, '\u00a0')
 }
 
 /**

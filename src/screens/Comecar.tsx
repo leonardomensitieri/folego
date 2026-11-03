@@ -1,5 +1,5 @@
 import { useState } from 'preact/hooks'
-import { brlCurto } from '../domain/money'
+import { brl } from '../domain/money'
 import type { Centavos } from '../domain/types'
 import { atualizarConfig, estado, prefs, salvarServico, trocarModo } from '../state/store'
 import { IcFolego } from '../ui/icons'
@@ -99,7 +99,7 @@ export function Comecar({ passo }: { passo: string }) {
             <p class="intro">Um pouquinho por atendimento vira fôlego para quando o secador quebrar ou você precisar parar uns dias.</p>
             <CampoValor id="porat" rotulo="Guardar a cada atendimento" valor={porAt} aoMudar={setPorAt} />
             <CampoValor id="meta" rotulo="Meta da reserva" valor={meta} aoMudar={setMeta} />
-            {porAt && meta ? <p class="calculo">Com {brlCurto(porAt)} por atendimento, a meta chega em cerca de {Math.ceil(meta / porAt)} atendimentos.</p> : null}
+            {porAt && meta ? <p class="calculo">Com {brl(porAt)} por atendimento, a meta chega em cerca de {Math.ceil(meta / porAt)} atendimentos.</p> : null}
             <button class="btn btn-primario btn-largo" onClick={concluir}>Pronto, começar</button>
           </>
         )}

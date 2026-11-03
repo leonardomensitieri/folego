@@ -1,14 +1,11 @@
-import { faturamentoAno, primeiroMesDeUso, receitaBrutaMes, situacaoDAS, vencimentoDAS } from '../domain/calc'
+import { competenciaDAS, faturamentoAno, primeiroMesDeUso, receitaBrutaMes, situacaoDAS, vencimentoDAS } from '../domain/calc'
 import { dataCurta, diasEntre, mesValido, nomeMes, nomeMesCurto, somarMeses, tituloMes } from '../domain/dates'
 import { MEI, limiteMei } from '../domain/defaults'
-import { brl, brlCurto } from '../domain/money'
+import { brl, brlComCentavos } from '../domain/money'
 import { alternarDAS, atualizarConfig, dataHoje, estado, mesAtual, modo } from '../state/store'
-import { Barra, Cartao, Dinheiro, Nota, Pagina } from '../ui/kit'
+import { avisar, Barra, Cartao, Detalhe, Dinheiro, Nota, Pagina } from '../ui/kit'
 import { IcCheck } from '../ui/icons'
 import { ir } from '../ui/router'
-
-const SELO = { pago: 'pago', 'a-vencer': 'a vencer', 'vence-logo': 'vence logo', atrasado: 'sem marcar' } as const
-
 
 export function Mei() {
   const e = estado.value
@@ -57,46 +54,70 @@ export function Mei() {
         <p class="destaque-valor pequeno"><Dinheiro v={fat} /></p>
         <Barra parte={fat} total={limite} rotulo="Quanto do limite anual do MEI já foi usado" />
         <p class={`cartao-sub ${usado >= MEI.alertaLimite ? 'valor-menos' : ''}`}>
-          {Math.round(usado * 100)}% do limite do MEI ({brlCurto(limite)} por ano).
+          {Math.round(usado * 100)}% do limite do MEI ({brl(limite)} por ano).
           {usado >= MEI.alertaLimite && ' Atenção: perto do limite. Converse com o Sebrae ou com um contador.'}
         </p>
         {ano <= 2026 && (
-          <details class="detalhe-inline">
-            <summary>Saiba mais: o limite vai mudar</summary>
-            <p class="cartao-sub pequeno">Pela Lei Complementar 238/2026, o limite sobe para R$ 110 mil em 2027 e R$ 140 mil em 2028. Confira sempre no Portal do Empreendedor.</p>
-          </details>
+          <Detalhe resumo="O limite vai mudar">
+            <p class="cartao-sub">Pela Lei Complementar 238/2026, o limite sobe para R$ 110 mil em 2027 e R$ 140 mil em 2028. Confira sempre no Portal do Empreendedor.</p>
+          </Detalhe>
         )}
       </Cartao>
 
       <h2 class="secao">DAS (boleto mensal do MEI)</h2>
-      <p class="muted pequeno">
-        Vence dia {MEI.diaVencimentoDAS} do mês seguinte (se cair em fim de semana ou feriado, no próximo dia útil). Pagar em dia mantém sua contribuição ao INSS.
-        Seu DAS: {brl(e.config.valorDAS)} (troque em Ajustes se mudar).
-      </p>
+      <p class="muted">Vence todo dia 20 (ou no próximo dia útil). Pagar em dia garante seu INSS.</p>
+      <Detalhe resumo="Mais detalhes">
+        <p class="cartao-sub">
+          O DAS de cada mês vence no dia {MEI.diaVencimentoDAS} do mês seguinte. Se cair em fim de semana ou feriado, vence no próximo dia útil.
+          Pagar em dia mantém sua contribuição ao INSS (aposentadoria e auxílio-doença). O valor do seu DAS ({brl(e.config.valorDAS)}) dá para trocar em Ajustes.
+        </p>
+      </Detalhe>
       <ul class="lista">
         {[...comps].reverse().map((c) => {
           const s = situacaoDAS(e.config, c, dia, e.lancamentos)
+          // pago pelo "Gastei → DAS do MEI": mostra o valor anotado e não tem o que desfazer aqui
+          const anotado = e.lancamentos.find((l) => l.tipo === 'saida' && l.categoria === 'das' && competenciaDAS(l) === c)
+          const marcado = e.config.dasPagos.includes(c)
+          const venc = vencimentoDAS(c)
+          const nome = `DAS de ${nomeMesCurto(c)}${c.slice(0, 4) !== String(ano) ? ` de ${c.slice(0, 4)}` : ''}`
           return (
-            <li>
-              <button class={`linha linha-botao das-${s}`} onClick={() => alternarDAS(c)} aria-pressed={s === 'pago'}>
-                <span class="linha-meio">
-                  <span class="linha-titulo">DAS de {nomeMesCurto(c)}{c.slice(0, 4) !== String(ano) ? ` de ${c.slice(0, 4)}` : ''}</span>
-                  <span class="linha-sub">vence {dataCurta(vencimentoDAS(c))}{s === 'a-vencer' || s === 'vence-logo' ? ` · faltam ${diasEntre(dia, vencimentoDAS(c))} dias` : ''} · toque para {s === 'pago' ? 'desmarcar' : 'marcar como pago'}</span>
-                </span>
-                <span class={`linha-direita selo selo-${s}`}>{s === 'pago' && <IcCheck size={18} />}{SELO[s]}</span>
-              </button>
+            <li class="das">
+              <div class="das-topo">
+                <span class="das-nome">{nome}</span>
+                <Dinheiro v={anotado?.valor ?? e.config.valorDAS} class="das-valor" />
+              </div>
+              <div class="das-baixo">
+                {s === 'pago' ? (
+                  <>
+                    <span class="das-situacao"><IcCheck size={18} /> Pago{anotado && !marcado ? ' (anotado em Gastei)' : ''}</span>
+                    {marcado && (
+                      <button class="link" onClick={() => alternarDAS(c)} aria-label={`Desfazer: ${nome} não foi pago`}>Desfazer</button>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <span class="das-situacao">
+                      {s === 'atrasado' ? `Venceu ${dataCurta(venc)}, sem marcar` : `Vence ${dataCurta(venc)} · em ${diasEntre(dia, venc)} ${diasEntre(dia, venc) === 1 ? 'dia' : 'dias'}`}
+                    </span>
+                    <button class="btn btn-pequeno btn-primario" aria-label={`Já paguei o ${nome}`}
+                      onClick={() => { alternarDAS(c); avisar(`${nome}: marcado como pago.`, { rotulo: 'Desfazer', fazer: () => { if (estado.value.config.dasPagos.includes(c)) alternarDAS(c) } }) }}>Já paguei</button>
+                  </>
+                )}
+              </div>
             </li>
           )
         })}
       </ul>
       <a class="btn btn-largo" href="https://www.gov.br/empresas-e-negocios/pt-br/empreendedor" target="_blank" rel="noopener noreferrer">Tirar o boleto no site oficial do MEI</a>
-      <p class="muted pequeno">Também dá pelo app “MEI” da Receita Federal. Depois de pagar, volte aqui e toque no mês para marcar.</p>
+      <p class="muted pequeno">Também dá pelo app “MEI” da Receita Federal.</p>
 
       <h2 class="secao">Relatório mensal do que você cobrou</h2>
-      <p class="muted pequeno">
-        Preencha até o dia 20 do mês seguinte e guarde junto com as notas.
-        {ano >= MEI.anoFimRelatorioMensal - 1 && ' A partir de 2027 ele deixa de ser obrigatório (Resolução CGSN 190/2026), mas continua útil para você se organizar.'}
-      </p>
+      <p class="muted">Preencha até o dia 20 do mês seguinte e guarde junto com as notas.</p>
+      {ano >= MEI.anoFimRelatorioMensal - 1 && (
+        <Detalhe resumo="Vai mudar em 2027">
+          <p class="cartao-sub">A partir de 2027 ele deixa de ser obrigatório (Resolução CGSN 190/2026), mas continua útil para você se organizar.</p>
+        </Detalhe>
+      )}
       <ul class="lista">
         {[0, 1, 2].map((n) => {
           const m = somarMeses(mesAtual.value, -n)
@@ -104,7 +125,7 @@ export function Mei() {
             <li>
               <button class="linha linha-botao" onClick={() => ir(`mei/relatorio/${m}`)}>
                 <span class="linha-meio"><span class="linha-titulo">{tituloMes(m)}</span></span>
-                <span class="linha-direita"><Dinheiro v={receitaBrutaMes(e.lancamentos, m)} curto /></span>
+                <span class="linha-direita"><Dinheiro v={receitaBrutaMes(e.lancamentos, m)} /></span>
               </button>
             </li>
           )
@@ -140,7 +161,7 @@ export function RelatorioMei({ mes }: { mes: string }) {
           <tbody>
             <tr><th>Com dispensa de emissão de documento fiscal</th><td class="preencher">&nbsp;</td></tr>
             <tr><th>Com documento fiscal emitido</th><td class="preencher">&nbsp;</td></tr>
-            <tr class="total"><th>Total das receitas brutas no mês</th><td>{brl(total)}</td></tr>
+            <tr class="total"><th>Total das receitas brutas no mês</th><td>{brlComCentavos(total)}</td></tr>
           </tbody>
         </table>
         <p class="pequeno">Total calculado pelo app Fôlego a partir do que foi anotado como “Recebi” no mês (valor cobrado, antes da taxa da maquininha). Divida o total entre “com nota” e “sem nota” conforme as notas emitidas.</p>

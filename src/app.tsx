@@ -126,7 +126,8 @@ export function App() {
       <a class="pular" href="#/" onClick={(ev) => { ev.preventDefault(); const m = document.getElementById('principal'); if (m) { m.tabIndex = -1; m.focus() } }}>Pular para o conteúdo</a>
       {modo.value === 'demo' && (
         <div class="faixa-demo" role="note">
-          <span>Exemplo com dados fictícios</span>
+          {/* em tela estreita ou com letra maior, a frase encurta para a faixa continuar numa linha só */}
+          <span><span class="so-largo">Exemplo com dados fictícios</span><span class="so-estreito">Dados fictícios</span></span>
           <button class="btn-faixa" onClick={() => trocarModo('real').then(() => ir('', { substituir: true }))}>Sair do exemplo</button>
         </div>
       )}
