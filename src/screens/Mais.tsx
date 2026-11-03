@@ -134,7 +134,7 @@ export function Privacidade() {
           <li><b>WhatsApp:</b> o texto da mensagem vai para o WhatsApp, que é da empresa Meta.</li>
           <li><b>Cópia de segurança e planilha:</b> o arquivo vai para onde você mandar.</li>
           <li><b>Microfone do teclado:</b> o teclado pode mandar a sua voz para o Google ou a Apple para virar texto.</li>
-          <li><b>Abrir e atualizar o app:</b> o celular baixa os arquivos do GitHub (o serviço que hospeda o app). Como qualquer site, ele vê o endereço de internet do aparelho.</li>
+          <li><b>Abrir e atualizar o app:</b> o celular baixa os arquivos do servidor do projeto (folego.sealugue.com). Como qualquer site, ele vê o endereço de internet do aparelho, mas não recebe nenhuma anotação sua.</li>
         </ul>
         <h2>Para que serve</h2>
         <p>Organizar o que entra e sai do seu salão, acompanhar a reserva e montar o relatório mensal do MEI. Os dados ficam até você apagar.</p>
