@@ -1,8 +1,9 @@
+import { useState } from 'preact/hooks'
 import { fiadosAbertos, taxaDaForma } from '../domain/calc'
 import { dataCurta, diasEntre, hoje } from '../domain/dates'
 import type { Forma, Lancamento } from '../domain/types'
 import { atualizarLancamento, estado, marcarRecebido } from '../state/store'
-import { avisar, BotaoWhatsApp, Dinheiro, Nota, Pagina, Vazio } from '../ui/kit'
+import { avisar, Dinheiro, enviarTexto, Nota, Pagina, Vazio } from '../ui/kit'
 import { ir } from '../ui/router'
 import { nomeCategoria } from '../ui/nomes'
 
@@ -18,14 +19,14 @@ const FORMAS: { forma: Forma; rotulo: string }[] = [
   { forma: 'credito', rotulo: 'Crédito' },
 ]
 
-export function Fiado() {
+function ItemFiado({ l }: { l: Lancamento }) {
   const e = estado.value
-  const abertos = fiadosAbertos(e.lancamentos)
-  const total = abertos.reduce((a, l) => a + l.valor, 0)
+  const [aberto, setAberto] = useState<'pagou' | 'lembrar' | null>(null)
+  const dias = diasEntre(l.data, hoje())
+  const texto = mensagemCobranca(l.cliente, l.data)
 
-  function receber(l: Lancamento, forma: Forma) {
-    const taxa = taxaDaForma(l.valor, forma, e.config.taxas)
-    atualizarLancamento(l.id, { forma, taxa })
+  function receber(forma: Forma) {
+    atualizarLancamento(l.id, { forma, taxa: taxaDaForma(l.valor, forma, e.config.taxas) })
     marcarRecebido(l.id)
     avisar(`Pago! ${l.cliente ?? 'A cliente'} acertou o fiado.`, {
       rotulo: 'Desfazer',
@@ -34,33 +35,52 @@ export function Fiado() {
   }
 
   return (
+    <li class="fiado-item">
+      <div class="fiado-linha">
+        <span class="fiado-quem">
+          <b>{l.cliente ?? 'Cliente'}</b>
+          <small class={dias > 7 ? 'fiado-antigo' : ''}>{nomeCategoria(e, l)} · {dataCurta(l.data)} · {dias === 0 ? 'hoje' : dias === 1 ? 'há 1 dia' : `há ${dias} dias`}</small>
+        </span>
+        <Dinheiro v={l.valor} class="fiado-valor" />
+      </div>
+      <div class="fiado-botoes">
+        <button class="btn btn-pequeno" aria-expanded={aberto === 'lembrar'} onClick={() => setAberto(aberto === 'lembrar' ? null : 'lembrar')}>Lembrar</button>
+        <button class="btn btn-pequeno btn-primario" aria-expanded={aberto === 'pagou'} onClick={() => setAberto(aberto === 'pagou' ? null : 'pagou')}>Ela pagou</button>
+      </div>
+      {aberto === 'lembrar' && (
+        <div class="fiado-painel">
+          <p class="campo-rotulo">A mensagem vai assim:</p>
+          <p class="mensagem-previa">{texto}</p>
+          <button class="btn btn-whats btn-largo" onClick={() => enviarTexto(texto)}>Mandar pelo WhatsApp</button>
+        </div>
+      )}
+      {aberto === 'pagou' && (
+        <div class="fiado-painel">
+          <p class="campo-rotulo">Como ela pagou?</p>
+          <div class="fiado-pagou">
+            {FORMAS.map((f) => <button class="btn btn-pequeno" onClick={() => receber(f.forma)}>{f.rotulo}</button>)}
+          </div>
+          <button class="btn btn-pequeno btn-sutil" onClick={() => ir(`editar/${l.id}`)}>Pagou outro valor? Mudar a anotação</button>
+        </div>
+      )}
+    </li>
+  )
+}
+
+export function Fiado() {
+  const e = estado.value
+  const abertos = fiadosAbertos(e.lancamentos)
+  const total = abertos.reduce((a, l) => a + l.valor, 0)
+
+  return (
     <Pagina titulo="Fiado" voltarPara="mais">
       {abertos.length === 0 ? (
-        <Vazio titulo="Ninguém com fiado 🎉" texto="Quando uma cliente pedir para pagar depois, escolha “Fiado (paga depois)” ao anotar." />
+        <Vazio titulo="Ninguém com fiado" texto="Quando uma cliente pedir para pagar depois, escolha “Fiado” ao anotar." />
       ) : (
         <>
-          <p class="total-fiado">Fiado para receber: <b><Dinheiro v={total} /></b></p>
-          <ul class="cartoes-fiado">
-            {abertos.map((l) => {
-              const dias = diasEntre(l.data, hoje())
-              return (
-                <li class="cartao fiado">
-                  <div class="fiado-topo">
-                    <b>{l.cliente ?? 'Cliente'}</b>
-                    <Dinheiro v={l.valor} />
-                  </div>
-                  <p class="cartao-sub">{nomeCategoria(e, l)} · {dataCurta(l.data)} · {dias === 0 ? 'hoje' : dias === 1 ? 'há 1 dia' : `há ${dias} dias`}</p>
-                  <BotaoWhatsApp texto={mensagemCobranca(l.cliente, l.data)} rotulo="Lembrar pelo WhatsApp" />
-                  <p class="campo-rotulo">Já pagou? Toque em como pagou:</p>
-                  <div class="fiado-pagou">
-                    {FORMAS.map((f) => (
-                      <button class="btn btn-pequeno" onClick={() => receber(l, f.forma)}>{f.rotulo}</button>
-                    ))}
-                  </div>
-                  <button class="btn btn-pequeno btn-sutil" onClick={() => ir(`editar/${l.id}`)}>Mudar ou apagar</button>
-                </li>
-              )
-            })}
+          <p class="total-fiado">Para receber: <b><Dinheiro v={total} /></b></p>
+          <ul class="lista fiado-lista">
+            {abertos.map((l) => <ItemFiado key={l.id} l={l} />)}
           </ul>
           <Nota>A mensagem não leva valor nem serviço. Ela vai para o WhatsApp (empresa Meta) só quando você manda. O app não guarda telefone de ninguém.</Nota>
         </>

@@ -57,32 +57,9 @@ export function Decidir() {
 
   return (
     <Pagina titulo="Decidir com calma">
-      <p class="intro">Antes de mexer no preço ou trocar produto, veja o efeito no seu bolso. É só uma conta: quem decide é você.</p>
+      <p class="intro">Antes de dar desconto, subir o preço ou trocar de produto, veja o efeito no seu bolso. É só uma conta: quem decide é você.</p>
 
-      <h2 class="secao">Quanto sobra em cada serviço</h2>
-      <p class="muted pequeno">Já descontando o produto usado e a taxa média da maquininha ({pct(taxaMedia)}).</p>
-      <ul class="lista">
-        {servicos.map((x) => {
-          const m = margemServico(x, taxaMedia)
-          return (
-            <li>
-              <button class="linha linha-botao" onClick={() => ir(`servico/${x.id}`)}>
-                <span class="linha-meio">
-                  <span class="linha-titulo">{x.nome} · {brlCurto(x.preco)}</span>
-                  <span class="linha-sub">produto {brlCurto(x.custoProduto)} · {x.minutos} min · {brlCurto(m.porHora)} por hora</span>
-                </span>
-                <span class="linha-direita">
-                  <Dinheiro v={m.margem} curto class={m.margem <= 0 ? 'valor-menos' : ''} />
-                  <small>sobra ({pct(Math.round(m.margemPct))})</small>
-                </span>
-              </button>
-            </li>
-          )
-        })}
-      </ul>
-      <button class="btn btn-largo" onClick={() => ir('servico/novo')}>+ Adicionar serviço</button>
-
-      <h2 class="secao" id="ese">E se…?</h2>
+      <h2 class="secao" id="ese">E se eu…?</h2>
       <div class="cenas" role="group" aria-label="Situação para simular">
         {CENAS.map((c) => (
           <button aria-pressed={cena === c.id} class={`cena ${cena === c.id ? 'ativa' : ''}`} onClick={() => setCena(c.id)}>
@@ -132,6 +109,29 @@ export function Decidir() {
           )}
         </Cartao>
       )}
+
+      <h2 class="secao">Quanto sobra em cada serviço</h2>
+      <p class="muted pequeno">Já sem o produto usado e sem a taxa média da maquininha nas suas vendas ({pct(taxaMedia)}; Pix e dinheiro não pagam taxa). <b>Ainda não desconta aluguel, luz e água</b>: isso sai do total do mês.</p>
+      <ul class="lista">
+        {servicos.map((x) => {
+          const m = margemServico(x, taxaMedia)
+          return (
+            <li>
+              <button class="linha linha-botao" onClick={() => ir(`servico/${x.id}`)}>
+                <span class="linha-meio">
+                  <span class="linha-titulo">{x.nome} · {brlCurto(x.preco)}</span>
+                  <span class="linha-sub">produto {brlCurto(x.custoProduto)} · {x.minutos} min</span>
+                </span>
+                <span class="linha-direita">
+                  <Dinheiro v={m.margem} curto class={m.margem <= 0 ? 'valor-menos' : ''} />
+                  <small>sobra por atendimento</small>
+                </span>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+      <button class="btn btn-largo" onClick={() => ir('servico/novo')}>+ Adicionar serviço</button>
 
       <h2 class="secao">Desconto para quem indicar compensa?</h2>
       <Cartao class="simulador">

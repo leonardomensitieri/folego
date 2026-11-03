@@ -3,7 +3,7 @@ import type { ComponentChildren, JSX } from 'preact'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { brl, brlCurto, parseValor } from '../domain/money'
 import type { Centavos } from '../domain/types'
-import { IcVoltar } from './icons'
+import { IcSeta, IcVoltar } from './icons'
 import { voltar } from './router'
 
 // ---------- aviso rápido (toast) com "desfazer" ----------
@@ -253,6 +253,7 @@ export function Linha({ titulo, sub, direita, onClick, icone }: {
         {sub && <span class="linha-sub">{sub}</span>}
       </span>
       {direita && <span class="linha-direita">{direita}</span>}
+      {onClick && <span class="linha-seta" aria-hidden="true"><IcSeta size={20} /></span>}
     </>
   )
   return onClick ? <button class="linha linha-botao" onClick={onClick}>{corpo}</button> : <div class="linha">{corpo}</div>

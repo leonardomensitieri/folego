@@ -23,7 +23,7 @@ const FORMAS: { forma: Forma | 'fiado'; rotulo: string }[] = [
   { forma: 'dinheiro', rotulo: 'Dinheiro' },
   { forma: 'debito', rotulo: 'Débito' },
   { forma: 'credito', rotulo: 'Crédito' },
-  { forma: 'fiado', rotulo: 'Fiado (paga depois)' },
+  { forma: 'fiado', rotulo: 'Fiado · paga depois' },
 ]
 
 /**

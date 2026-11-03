@@ -2,13 +2,14 @@ import { useState } from 'preact/hooks'
 import { signal } from '@preact/signals'
 import { recebidoEmAoEditar, saldoReserva, taxaDaForma } from '../domain/calc'
 import { hoje, somarMeses } from '../domain/dates'
-import { SERVICO_AVULSO } from '../domain/defaults'
+import { NOMES_FORMA, SERVICO_AVULSO } from '../domain/defaults'
 import { brl, brlCurto } from '../domain/money'
 import type { Centavos, Forma, Lancamento, Tipo } from '../domain/types'
 import { adicionarLancamento, atualizarLancamento, estado, removerLancamento, restaurarLancamento } from '../state/store'
 import { avisar, CampoTexto, CampoValor, Escolha, Nota, Pagina } from '../ui/kit'
 import { ir, voltar } from '../ui/router'
 import { ROTULO_TIPO } from '../ui/nomes'
+import { IconeCategoria } from '../ui/iconeCategoria'
 
 type FormaOuFiado = Forma | 'fiado'
 
@@ -166,7 +167,7 @@ export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarI
           <div class="grade-servicos">
             {e.categorias.map((c) => (
               <button type="button" class={`opcao opcao-icone ${categoria === c.id ? 'ativa' : ''}`} aria-pressed={categoria === c.id} onClick={() => setCategoria(c.id)}>
-                <span aria-hidden="true" class="emoji">{c.icone}</span>
+                <span aria-hidden="true" class="opcao-ic"><IconeCategoria l={{ tipo: 'saida', categoria: c.id }} /></span>
                 <span>{c.nome}</span>
               </button>
             ))}
@@ -193,7 +194,7 @@ export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarI
             { valor: 'dinheiro', rotulo: 'Dinheiro' },
             { valor: 'debito', rotulo: 'Débito', extra: `${String(e.config.taxas.debito).replace('.', ',')}%` },
             { valor: 'credito', rotulo: 'Crédito', extra: `${String(e.config.taxas.credito).replace('.', ',')}%` },
-            { valor: 'fiado', rotulo: 'Fiado (paga depois)' },
+            { valor: 'fiado', rotulo: 'Fiado', extra: 'paga depois' },
           ]}
         />
       )}
@@ -229,8 +230,10 @@ export function Lancar({ tipo: tipoInicial, editarId }: { tipo?: string; editarI
 
       {tentou && faltando && <p class="erro" role="alert">{faltando}</p>}
 
-      <div class="rodape-acoes">
-        <button class="btn btn-primario btn-largo" onClick={salvar}>{editando ? 'Salvar alteração' : 'Salvar'}</button>
+      <div class="rodape-acoes rodape-fixo">
+        <button class="btn btn-primario btn-largo" onClick={salvar}>
+          {editando ? 'Salvar alteração' : valor ? `Salvar ${brlCurto(valor)}${ehEntrada && forma ? ` · ${forma === 'fiado' ? 'fiado' : NOMES_FORMA[forma]}` : ''}` : 'Salvar'}
+        </button>
         {editando && <button class="btn btn-perigo btn-largo" onClick={apagar}>Apagar esta anotação</button>}
       </div>
     </Pagina>

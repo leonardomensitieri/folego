@@ -2,9 +2,9 @@ import type { Centavos } from './types'
 
 const fmt = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
 
+/** "R$ 1.234,56" com espaço que não quebra: o "R$" nunca fica sozinho no fim da linha. */
 export function brl(c: Centavos): string {
-  // Intl usa espaço não separável depois do "R$"; trocamos por espaço comum para leitura de tela e testes.
-  return fmt.format(c / 100).replace(/ /g, ' ')
+  return fmt.format(c / 100).replace(/\s/g, '\u00a0')
 }
 
 /** "R$ 1.234,56" sem centavos quando é valor redondo: "R$ 50". */

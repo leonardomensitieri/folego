@@ -118,8 +118,8 @@ export function App() {
       <a class="pular" href="#principal">Pular para o conteúdo</a>
       {modo.value === 'demo' && (
         <div class="faixa-demo" role="note">
-          <span>Demonstração · dados fictícios</span>
-          <button class="btn-faixa" onClick={() => trocarModo('real').then(() => ir('', { substituir: true }))}>Sair da demonstração</button>
+          <span>Exemplo com dados fictícios</span>
+          <button class="btn-faixa" onClick={() => trocarModo('real').then(() => ir('', { substituir: true }))}>Sair do exemplo</button>
         </div>
       )}
       {erroArmazenamento.value && (

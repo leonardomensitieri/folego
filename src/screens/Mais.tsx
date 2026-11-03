@@ -3,7 +3,7 @@ import { fiadosAbertos, saldoReserva } from '../domain/calc'
 import { brlCurto } from '../domain/money'
 import type { Centavos } from '../domain/types'
 import { apagarTudoReal, armazenamentoPersistente, atualizarConfig, estado, modo, prefs, recomecarDemo, temDadosReais, trocarModo } from '../state/store'
-import { IcAjuste, IcBalanca, IcCaminhao, IcCasa, IcCheck, IcCofre, IcConversa, IcEscudo, IcInfo, IcNuvem, IcPessoa, IcRecibo } from '../ui/icons'
+import { IcAjuste, IcBalanca, IcCaminhao, IcCelular, IcCheck, IcCofre, IcConversa, IcEscudo, IcInfo, IcNuvem, IcPessoa, IcRecibo, IcSeta } from '../ui/icons'
 import { avisar, BotaoWhatsApp, CampoNumero, CampoTexto, CampoValor, Escolha, Linha, Nota, Pagina } from '../ui/kit'
 import { ir } from '../ui/router'
 import { estaInstalado } from './Instalar'
@@ -19,22 +19,23 @@ export function Mais() {
   return (
     <Pagina titulo="Mais">
       <ul class="lista menu">
-        <li><Linha icone={<IcCofre />} titulo={`${nomeDaReserva()} (fôlego)`} sub={`Guardado: ${brlCurto(saldoReserva(e.lancamentos))}`} onClick={() => ir('mais/reserva')} /></li>
+        <li><Linha icone={<IcCofre />} titulo="Reserva para imprevistos" sub={`${nomeDaReserva() !== 'Reserva' ? `${nomeDaReserva()} · ` : ''}guardado: ${brlCurto(saldoReserva(e.lancamentos))}`} onClick={() => ir('mais/reserva')} /></li>
         <li><Linha icone={<IcPessoa />} titulo="Fiado" sub={fiado ? `${brlCurto(fiado)} para receber` : 'Ninguém com fiado'} onClick={() => ir('mais/fiado')} /></li>
-        <li><Linha icone={<IcCheck />} titulo="Meu plano de 30 dias" sub={`Do Kit de Resiliência · ${feitos} de 4 feitos`} onClick={() => ir('mais/plano')} /></li>
+        <li><Linha icone={<IcCheck />} titulo="Meu plano do mês" sub={`4 passos pequenos · ${feitos} de 4 feitos`} onClick={() => ir('mais/plano')} /></li>
         <li><Linha icone={<IcCaminhao />} titulo="Fornecedores" sub="Compare preços antes de comprar" onClick={() => ir('mais/fornecedores')} /></li>
         <li><Linha icone={<IcRecibo />} titulo="MEI em dia" sub={e.config.ehMei === false ? 'Você disse que não é MEI' : 'DAS, limite e relatório mensal'} onClick={() => ir('mais/mei')} /></li>
         <li>
           <a class="linha linha-botao" href={`${import.meta.env.BASE_URL}laboratorio/`}>
             <span class="linha-icone" aria-hidden="true"><IcBalanca /></span>
             <span class="linha-meio">
-              <span class="linha-titulo">Treinar decisões (Laboratório)</span>
-              <span class="linha-sub">O jogo dos choques: concorrente, dólar, secador…</span>
+              <span class="linha-titulo">Treinar: e se o produto subir de preço?</span>
+              <span class="linha-sub">Um jogo curto com imprevistos de salão, sem nota</span>
             </span>
+            <span class="linha-seta" aria-hidden="true"><IcSeta size={20} /></span>
           </a>
         </li>
         <li><Linha icone={<IcConversa />} titulo="Mensagens prontas" sub="Ausência, retorno, horário livre, indicação" onClick={() => ir('mais/mensagens')} /></li>
-        {!estaInstalado() && <li><Linha icone={<IcCasa />} titulo="Instalar no celular" sub="Abrir como app, sem internet" onClick={() => ir('mais/instalar')} /></li>}
+        {!estaInstalado() && <li><Linha icone={<IcCelular />} titulo="Instalar no celular" sub="Abrir como app, sem internet" onClick={() => ir('mais/instalar')} /></li>}
         <li><Linha icone={<IcNuvem />} titulo="Cópia de segurança" sub="Guardar e voltar seus dados" onClick={() => ir('mais/backup')} /></li>
         <li><Linha icone={<IcAjuste />} titulo="Ajustes" sub="Salário, reserva, maquininha, letra maior" onClick={() => ir('mais/ajustes')} /></li>
         <li><Linha icone={<IcEscudo />} titulo="Privacidade e limites" sub="Onde ficam seus dados" onClick={() => ir('mais/privacidade')} /></li>
@@ -225,8 +226,8 @@ export function Plano30() {
   const c = estado.value.config
   const feito = c.plano30 ?? [false, false, false, false]
   return (
-    <Pagina titulo="Meu plano de 30 dias" voltarPara="mais">
-      <p class="intro">Do Kit de Resiliência. Um passo pequeno por semana.</p>
+    <Pagina titulo="Meu plano do mês" voltarPara="mais">
+      <p class="intro">Um passo pequeno por semana, do Kit de Resiliência que a equipe preparou com você.</p>
       <ul class="lista">
         {PLANO.map((t, i) => (
           <li>

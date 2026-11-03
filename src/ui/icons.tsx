@@ -44,3 +44,16 @@ export const IcFolego = (p: P) => (
     <path d="M3 17h6" />
   </Svg>
 )
+
+// ---- ícones de categoria (substituem emojis: um só estilo de traço no app inteiro) ----
+export const IcTesoura = (p: P) => <Svg {...p}><circle cx="6" cy="6.5" r="2.5" /><circle cx="6" cy="17.5" r="2.5" /><path d="M8 8.2 20 18M8 15.8 20 6" /></Svg>
+export const IcFrasco = (p: P) => <Svg {...p}><path d="M9 3h6M10 3v3l-3 3v10.5A1.5 1.5 0 0 0 8.5 21h7a1.5 1.5 0 0 0 1.5-1.5V9l-3-3V3" /><path d="M7 13h10" /></Svg>
+export const IcLampada = (p: P) => <Svg {...p}><path d="M9 18h6M10 21h4" /><path d="M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.3 1 2.2h5.2c0-.9.4-1.7 1-2.2A6 6 0 0 0 12 3Z" /></Svg>
+export const IcBrilho = (p: P) => <Svg {...p}><path d="M12 3v4M12 17v4M3 12h4M17 12h4" /><path d="m6 6 2 2M16 16l2 2M6 18l2-2M16 8l2-2" /></Svg>
+export const IcTomada = (p: P) => <Svg {...p}><path d="M9 3v5M15 3v5M6 8h12v3a6 6 0 0 1-12 0z" /><path d="M12 17v4" /></Svg>
+export const IcCartao = (p: P) => <Svg {...p}><rect x="3" y="5.5" width="18" height="13" rx="2" /><path d="M3 10h18M7 15h4" /></Svg>
+export const IcMegafone = (p: P) => <Svg {...p}><path d="M4 10v4a1 1 0 0 0 1 1h2l6 4V5L7 9H5a1 1 0 0 0-1 1Z" /><path d="M17 9a4 4 0 0 1 0 6" /></Svg>
+export const IcSetaVolta = (p: P) => <Svg {...p}><path d="M9 14 4 9l5-5" /><path d="M4 9h11a5 5 0 0 1 0 10h-3" /></Svg>
+export const IcAltoFalante = (p: P) => <Svg {...p}><path d="M4 9.5v5h3.5L12 18V6L7.5 9.5z" /><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" /></Svg>
+export const IcCelular = (p: P) => <Svg {...p}><rect x="7" y="2.5" width="10" height="19" rx="2" /><path d="M12 8v6m-2.5-2.5L12 14l2.5-2.5M11 18.5h2" /></Svg>
+export const IcFolha = (p: P) => <Svg {...p}><path d="M7 3h7l5 5v13H7z" /><path d="M14 3v5h5M10 13h6M10 17h6" /></Svg>

@@ -12,14 +12,6 @@ export function nomeCategoria(e: Estado, l: Pick<Lancamento, 'tipo' | 'categoria
   return e.categorias.find((c) => c.id === l.categoria)?.nome ?? 'Gasto'
 }
 
-export function iconeCategoria(e: Estado, l: Pick<Lancamento, 'tipo' | 'categoria'>): string {
-  if (l.tipo === 'retirada') return '🏡'
-  if (l.tipo === 'reserva') return '🐷'
-  if (l.tipo === 'resgate') return '↩️'
-  if (l.tipo === 'entrada') return '✂️'
-  return e.categorias.find((c) => c.id === l.categoria)?.icone ?? '📦'
-}
-
 export function nomeForma(f: Lancamento['forma']): string {
   return f ? NOMES_FORMA[f] : ''
 }

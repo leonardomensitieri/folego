@@ -5,7 +5,9 @@ import { estado, mesAtual } from '../state/store'
 import { IcSeta, IcVoltar } from '../ui/icons'
 import { Cartao, Dinheiro, Vazio } from '../ui/kit'
 import { ir } from '../ui/router'
-import { iconeCategoria, nomeCategoria, nomeForma, sinalNoCaixa } from '../ui/nomes'
+import { nomeCategoria, nomeForma, sinalNoCaixa } from '../ui/nomes'
+import { IconeCategoria } from '../ui/iconeCategoria'
+import { brl } from '../domain/money'
 
 export function ListaLancamentos({ lancamentos, semData }: { lancamentos: Lancamento[]; semData?: boolean }) {
   const e = estado.value
@@ -23,14 +25,14 @@ export function ListaLancamentos({ lancamentos, semData }: { lancamentos: Lancam
         return (
           <li>
             <button class="linha linha-botao" onClick={() => ir(`editar/${l.id}`)}>
-              <span class="linha-icone" aria-hidden="true">{iconeCategoria(e, l)}</span>
+              <span class="linha-icone" aria-hidden="true"><IconeCategoria l={l} /></span>
               <span class="linha-meio">
                 <span class="linha-titulo">{nomeCategoria(e, l)}</span>
                 {sub && <span class="linha-sub">{sub}</span>}
               </span>
               <span class={`linha-direita valor-${!l.recebido ? 'fiado' : s > 0 ? 'mais' : s < 0 ? 'menos' : 'neutro'}`}>
                 <Dinheiro v={s < 0 ? -l.valor : l.valor} sinal={s !== 0} />
-                {!l.recebido ? <small>fiado</small> : l.taxa > 0 && <small>taxa {(l.taxa / 100).toFixed(2).replace('.', ',')}</small>}
+                {!l.recebido ? <small>fiado</small> : l.taxa > 0 && <small>taxa {brl(l.taxa)}</small>}
               </span>
             </button>
           </li>
@@ -65,13 +67,12 @@ export function Movimentos({ mes: mesParam }: { mes?: string }) {
           <dl class="numeros">
             <div><dt>Entrou</dt><dd><Dinheiro v={r.entrou} /></dd></div>
             <div><dt>Saiu (gastos do salão)</dt><dd><Dinheiro v={-r.saiu} /></dd></div>
-            <div class="total"><dt>O salão rendeu (entrou − saiu)</dt><dd><Dinheiro v={r.resultado} /></dd></div>
             <div><dt>Pra casa</dt><dd><Dinheiro v={-r.praCasa} /></dd></div>
-            <div class="total"><dt>Sobrou no salão</dt><dd><Dinheiro v={r.sobrou} /></dd></div>
+            <div class="total"><dt>{r.sobrou < 0 ? 'Faltou no salão' : 'Sobrou no salão'}</dt><dd><Dinheiro v={r.sobrou} /></dd></div>
           </dl>
           <p class="cartao-sub">
-            {r.atendimentos} {r.atendimentos === 1 ? 'atendimento' : 'atendimentos'} · taxas da maquininha {(r.taxas / 100).toFixed(2).replace('.', ',')}
-            {r.guardado !== 0 && <> · guardado na reserva <Dinheiro v={r.guardado} curto /></>}
+            {r.atendimentos} {r.atendimentos === 1 ? 'atendimento' : 'atendimentos'} · a maquininha ficou com {brl(r.taxas)}
+            {r.guardado > 0 && <> · do que sobrou, <Dinheiro v={r.guardado} curto /> foi para a reserva</>}
           </p>
         </Cartao>
 

@@ -4,7 +4,7 @@ import { custoMensal, diasDeFolego, fiadosAbertos, primeiroMesDeUso, resumoDoMes
 import { dataCurta, nomeMesCurto, somarMeses, tituloMes } from '../domain/dates'
 import { brlCurto } from '../domain/money'
 import { dataHoje, estado, mesAtual, modo, prefs } from '../state/store'
-import { IcAlerta, IcCasa, IcCofre, IcConversa, IcMenos, IcNuvem, IcRecibo, IcSoma } from '../ui/icons'
+import { IcAlerta, IcAltoFalante, IcCasinha, IcCelular, IcCofre, IcMenos, IcNuvem, IcPessoa, IcRecibo, IcSoma } from '../ui/icons'
 import { Barra, Cartao, Dinheiro } from '../ui/kit'
 import { ir } from '../ui/router'
 import { AtendimentoRapido } from './AtendimentoRapido'
@@ -75,8 +75,8 @@ export function Inicio() {
   // Um aviso por vez, o mais importante primeiro (tela simples para quem lê palavra por palavra).
   const avisos: Aviso[] = []
   if (das === 'atrasado') avisos.push({ chave: 'das', forte: true, icone: <IcAlerta />, titulo: `DAS de ${nomeMesCurto(compDAS)} sem marcar como pago`, texto: 'Venceu dia 20. Se já pagou, toque e marque. Se não, pague no app MEI para manter o INSS em dia.', ir: 'mais/mei', rotulo: 'Abrir MEI em dia' })
-  if (sugerirInstalar) avisos.push({ chave: 'instalar', icone: <IcCasa />, titulo: 'Instale o Fôlego no celular', texto: e.lancamentos.length > 0 ? 'Abre como app e funciona sem internet. No iPhone, faça uma cópia antes: o app instalado começa vazio.' : 'Abre como app e funciona sem internet. Instale antes de começar a anotar.', ir: 'mais/instalar', rotulo: 'Ver como instalar' })
-  if (totalFiado > 0) avisos.push({ chave: 'fiado', icone: <IcConversa />, titulo: <>Fiado para receber: <Dinheiro v={totalFiado} curto /></>, texto: fiados.length === 1 ? '1 cliente vai pagar depois.' : `${fiados.length} clientes vão pagar depois.`, ir: 'mais/fiado', rotulo: 'Ver o fiado' })
+  if (sugerirInstalar) avisos.push({ chave: 'instalar', icone: <IcCelular />, titulo: 'Instale o Fôlego no celular', texto: e.lancamentos.length > 0 ? 'Abre como app e funciona sem internet. No iPhone, faça uma cópia antes: o app instalado começa vazio.' : 'Abre como app e funciona sem internet. Instale antes de começar a anotar.', ir: 'mais/instalar', rotulo: 'Ver como instalar' })
+  if (totalFiado > 0) avisos.push({ chave: 'fiado', icone: <IcPessoa />, titulo: <>Fiado para receber: <Dinheiro v={totalFiado} curto /></>, texto: fiados.length === 1 ? '1 cliente vai pagar depois.' : `${fiados.length} clientes vão pagar depois.`, ir: 'mais/fiado', rotulo: 'Ver o fiado' })
   if (das === 'vence-logo') avisos.push({ chave: 'das', icone: <IcRecibo />, titulo: 'DAS vence logo', texto: `Vence em ${dataCurta(vencimentoDAS(compDAS))}. Já pagou? Toque para marcar.`, ir: 'mais/mei', rotulo: 'Abrir MEI em dia' })
   if (precisaBackup) avisos.push({ chave: 'backup', icone: <IcNuvem />, titulo: 'Faça uma cópia de segurança', texto: 'Seus dados ficam só neste celular. Guarde uma cópia no WhatsApp ou no Drive.', ir: 'mais/backup', rotulo: 'Fazer cópia de segurança' })
   if (das === 'a-vencer') avisos.push({ chave: 'das', icone: <IcRecibo />, titulo: 'DAS do mês', texto: `Vence em ${dataCurta(vencimentoDAS(compDAS))}. Já pagou? Toque para marcar.`, ir: 'mais/mei', rotulo: 'Abrir MEI em dia' })
@@ -92,21 +92,22 @@ export function Inicio() {
       </header>
 
       <div class="conteudo">
-        <Cartao class={`destaque ${r.sobrou < 0 ? 'negativo' : ''}`} onClick={() => ir(`movimentos/${mes}`)} rotulo="Ver os lançamentos do mês">
-          <p class="destaque-rotulo">Sobrou no salão</p>
+        <Cartao class="destaque" onClick={() => ir(`movimentos/${mes}`)} rotulo="Toque para ver as anotações do mês">
+          <p class="destaque-rotulo">{r.sobrou < 0 ? 'Faltou no salão' : 'Sobrou no salão'}</p>
           <p class="destaque-valor"><Dinheiro v={r.sobrou} /></p>
           <div class="tres">
             <span><small>Entrou</small><Dinheiro v={r.entrou} curto /></span>
             <span><small>Saiu</small><Dinheiro v={r.saiu} curto /></span>
             <span><small>Pra casa</small><Dinheiro v={r.praCasa} curto /></span>
           </div>
+          {r.guardado > 0 && <p class="destaque-nota">Desse valor, <Dinheiro v={r.guardado} curto /> já foram para a reserva.</p>}
         </Cartao>
         <div class="linha-links">
           <button class="link-sutil" onClick={() => setMostrarComo(!mostrarComo)} aria-expanded={mostrarComo}>
             {mostrarComo ? 'Fechar explicação' : 'Como esse número é calculado?'}
           </button>
           {temVoz && (
-            <button class="link-sutil" onClick={() => ouvir(r.entrou, r.saiu, r.praCasa, r.sobrou)}>🔊 Ouvir</button>
+            <button class="link-sutil" onClick={() => ouvir(r.entrou, r.saiu, r.praCasa, r.sobrou)}><IcAltoFalante size={20} /> Ouvir</button>
           )}
         </div>
         {mostrarComo && (
@@ -131,26 +132,24 @@ export function Inicio() {
 
         <AtendimentoRapido />
 
-        <div class="acoes-grandes">
-          <button class="btn-grande btn-entrada" onClick={() => ir('lancar/entrada')}>
-            <IcSoma size={28} /> Recebi
-          </button>
-          <button class="btn-grande btn-saida" onClick={() => ir('lancar/saida')}>
-            <IcMenos size={28} /> Gastei
-          </button>
-        </div>
         <div class="acoes-pequenas">
-          <button class="btn-pilula" onClick={() => ir('lancar/retirada')}><span aria-hidden="true">🏡</span> Tirei pra casa</button>
-          <button class="btn-pilula" onClick={() => ir('lancar/reserva')}><span aria-hidden="true">🐷</span> Guardei</button>
+          <button class="btn-pilula" onClick={() => ir('lancar/retirada')}><IcCasinha size={20} /> Tirei pra casa</button>
+          <button class="btn-pilula" onClick={() => ir('lancar/reserva')}><IcCofre size={20} /> Guardei na reserva</button>
+        </div>
+
+        {/* Recebi / Gastei ficam sempre à mão, presos logo acima do menu */}
+        <div class="barra-acao" role="group" aria-label="Anotar">
+          <button class="btn-grande btn-entrada" onClick={() => ir('lancar/entrada')}><IcSoma size={26} /> Recebi</button>
+          <button class="btn-grande btn-saida" onClick={() => ir('lancar/saida')}><IcMenos size={26} /> Gastei</button>
         </div>
 
         <Cartao class="folego" onClick={() => ir('mais/reserva')} rotulo="Abrir a reserva">
           <div class="folego-topo">
             <IcCofre />
             <div>
-              <p class="cartao-titulo">Fôlego · {nomeDaReserva()}</p>
+              <p class="cartao-titulo">Reserva{nomeDaReserva() !== 'Reserva' ? ` · ${nomeDaReserva()}` : ''}</p>
               <p class="folego-dias">
-                {reserva <= 0 ? 'Sem reserva ainda' : folego === 1 ? '1 dia' : `${folego} dias`}
+                {reserva <= 0 ? 'Sem reserva ainda' : folego === 1 ? '1 dia de fôlego' : `${folego} dias de fôlego`}
               </p>
             </div>
             <Dinheiro v={reserva} curto class="folego-valor" />

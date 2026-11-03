@@ -18,9 +18,9 @@ const L = (p: Partial<Lancamento>): Lancamento => ({
 
 describe('dinheiro', () => {
   it('formata em reais', () => {
-    expect(brl(123456)).toBe('R$ 1.234,56')
-    expect(brlCurto(5000)).toBe('R$ 50')
-    expect(brlCurto(5050)).toBe('R$ 50,50')
+    expect(brl(123456)).toBe('R$\u00a01.234,56')
+    expect(brlCurto(5000)).toBe('R$\u00a050')
+    expect(brlCurto(5050)).toBe('R$\u00a050,50')
   })
   it('entende o jeito que as pessoas digitam', () => {
     expect(parseValor('50')).toBe(5000)

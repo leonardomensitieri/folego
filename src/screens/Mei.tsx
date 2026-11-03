@@ -1,13 +1,14 @@
 import { faturamentoAno, receitaBrutaMes, situacaoDAS, vencimentoDAS } from '../domain/calc'
-import { dataCurta, hoje, nomeMes, nomeMesCurto, somarMeses, tituloMes } from '../domain/dates'
+import { dataCurta, diasEntre, hoje, nomeMes, nomeMesCurto, somarMeses, tituloMes } from '../domain/dates'
 import { MEI, limiteMei } from '../domain/defaults'
 import { brl, brlCurto } from '../domain/money'
 import { alternarDAS, atualizarConfig, estado, mesAtual, modo } from '../state/store'
 import { Barra, Cartao, Dinheiro, Nota, Pagina } from '../ui/kit'
+import { IcCheck } from '../ui/icons'
 import { ir } from '../ui/router'
 
 const SELO = { pago: 'pago', 'a-vencer': 'a vencer', 'vence-logo': 'vence logo', atrasado: 'sem marcar' } as const
-const ICONE = { pago: '✅', 'a-vencer': '', 'vence-logo': '⏰', atrasado: '⚠️' } as const
+
 
 export function Mei() {
   const e = estado.value
@@ -57,12 +58,17 @@ export function Mei() {
           {Math.round(usado * 100)}% do limite do MEI ({brlCurto(limite)} por ano).
           {usado >= MEI.alertaLimite && ' Atenção: perto do limite. Converse com o Sebrae ou com um contador.'}
         </p>
-        {ano <= 2026 && <p class="cartao-sub pequeno">O limite sobe para R$ 110 mil em 2027 e R$ 140 mil em 2028 (Lei Complementar 238/2026).</p>}
+        {ano <= 2026 && (
+          <details class="detalhe-inline">
+            <summary>Saiba mais: o limite vai mudar</summary>
+            <p class="cartao-sub pequeno">Pela Lei Complementar 238/2026, o limite sobe para R$ 110 mil em 2027 e R$ 140 mil em 2028. Confira sempre no Portal do Empreendedor.</p>
+          </details>
+        )}
       </Cartao>
 
       <h2 class="secao">DAS (boleto mensal do MEI)</h2>
       <p class="muted pequeno">
-        Vence todo dia {MEI.diaVencimentoDAS} do mês seguinte. Pagar em dia mantém sua contribuição ao INSS.
+        Vence dia {MEI.diaVencimentoDAS} do mês seguinte (se cair em fim de semana, no próximo dia útil). Pagar em dia mantém sua contribuição ao INSS.
         Seu DAS: {brl(e.config.valorDAS)} (troque em Ajustes se mudar).
       </p>
       <ul class="lista">
@@ -73,15 +79,16 @@ export function Mei() {
               <button class={`linha linha-botao das-${s}`} onClick={() => alternarDAS(c)} aria-pressed={s === 'pago'}>
                 <span class="linha-meio">
                   <span class="linha-titulo">DAS de {nomeMesCurto(c)}</span>
-                  <span class="linha-sub">vence {dataCurta(vencimentoDAS(c))} · toque para {s === 'pago' ? 'desmarcar' : 'marcar como pago'}</span>
+                  <span class="linha-sub">vence {dataCurta(vencimentoDAS(c))}{s === 'a-vencer' || s === 'vence-logo' ? ` · faltam ${diasEntre(hoje(), vencimentoDAS(c))} dias` : ''} · toque para {s === 'pago' ? 'desmarcar' : 'marcar como pago'}</span>
                 </span>
-                <span class="linha-direita"><span aria-hidden="true">{ICONE[s]} </span>{SELO[s]}</span>
+                <span class={`linha-direita selo selo-${s}`}>{s === 'pago' && <IcCheck size={18} />}{SELO[s]}</span>
               </button>
             </li>
           )
         })}
       </ul>
-      <p class="muted pequeno">Você tira o boleto no app MEI (da Receita) ou em gov.br/mei.</p>
+      <a class="btn btn-largo" href="https://www.gov.br/empresas-e-negocios/pt-br/empreendedor" target="_blank" rel="noopener noreferrer">Tirar o boleto no site oficial do MEI</a>
+      <p class="muted pequeno">Também dá pelo app “MEI” da Receita Federal. Depois de pagar, volte aqui e toque no mês para marcar.</p>
 
       <h2 class="secao">Relatório mensal do que você cobrou</h2>
       <p class="muted pequeno">
